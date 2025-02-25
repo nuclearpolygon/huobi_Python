@@ -1,0 +1,21 @@
+services:
+  front:
+    image: nginx
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+    ports:
+      - "80:80"
+  back:
+    image: backend_image
+    build:
+      context: .
+    hostname: backend
+    container_name: backend
+    volumes:
+      - ./financial_data.db:/app/financial_data.db
+      - ./backend.py:/app/backend.py
+    environment:
+      PYTHONPATH: "/app"
+    ports:
+      - "5000:5000"
+    command: ['gunicorn', '-w', '4', '-b', '0.0.0.0:5000', 'backend:app']

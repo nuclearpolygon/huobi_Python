@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candlestick Chart</title>
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
+</head>
+<body>
+    <h1>Candlestick Chart with Dynamic Data</h1>
+    <div id="chart"></div>
+
+    <script>
+        // Fetch data from the backend
+        async function fetchData() {
+            const response = await fetch('http://127.0.0.1:5000/api/data');
+            const data = await response.json();
+            return data;
+        }
+
+        // Create the candlestick chart
+        async function createChart() {
+            const data = await fetchData();
+
+            const dates = data.map(row => row.Date);
+            const open = data.map(row => row.Open);
+            const high = data.map(row => row.High);
+            const low = data.map(row => row.Low);
+            const close = data.map(row => row.Close);
+            const volume = data.map(row => row.Volume);
+
+            const candlestickTrace = {
+                x: dates,
+                open: open,
+                high: high,
+                low: low,
+                close: close,
+                type: 'candlestick',
+                name: 'Candlestick'
+            };
+
+            const volumeTrace = {
+                x: dates,
+                y: volume,
+                type: 'bar',
+                name: 'Volume',
+                yaxis: 'y2',
+                marker: { color: 'rgba(100, 100, 100, 0.6)' }
+            };
+
+            const layout = {
+                title: 'Candlestick Chart with Volume',
+                xaxis: { title: 'Date' },
+                yaxis: { title: 'Price' },
+                yaxis2: { title: 'Volume', overlaying: 'y', side: 'right' },
+                xaxis_rangeslider: { visible: true }
+            };
+
+            Plotly.newPlot('chart', [candlestickTrace, volumeTrace], layout);
+        }
+
+        // Initialize the chart
+        createChart();
+    </script>
+</body>
+</html>
