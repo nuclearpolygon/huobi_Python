@@ -8,7 +8,7 @@ import time
 market_client = MarketClient()
 interval = CandlestickInterval.HOUR4
 symbol = "ethusdt"
-size = 1000
+size = 2000
 list_obj = market_client.get_candlestick(symbol, interval, size)
 date = pd.to_datetime(time.time(), unit='s')
 
@@ -32,7 +32,7 @@ conn = sqlite3.connect('financial_data.db')
 cursor = conn.cursor()
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS stock_data (
-    Date TEXT PRIMARY KEY,
+    Date DATETIME PRIMARY KEY,
     Open REAL,
     High REAL,
     Low REAL,
