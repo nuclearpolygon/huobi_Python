@@ -1,3 +1,4 @@
+import datetime
 class Candlestick:
     """
     The candlestick/kline data.
@@ -37,3 +38,13 @@ class Candlestick:
         PrintBasic.print_basic(self.count, format_data + "Count")
         PrintBasic.print_basic(self.amount, format_data + "Amount")
         PrintBasic.print_basic(self.vol, format_data + "Volume")
+
+    def asTuple(self):
+        return (
+            datetime.datetime.fromtimestamp(self.id),
+            self.open,
+            self.high,
+            self.low,
+            self.close,
+            self.vol
+        )

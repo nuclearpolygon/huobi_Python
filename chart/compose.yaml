@@ -8,6 +8,8 @@ services:
     volumes:
       - ./financial_data.db:/app/financial_data.db
       - ./app.py:/app/app.py
+      - ./db.py:/app/db.py
+      - ../huobi:/app/huobi
     environment:
       PYTHONPATH: "/app"
     ports:
