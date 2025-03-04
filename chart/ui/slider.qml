@@ -3,22 +3,21 @@ import QtQuick.Controls 2.15
 
 Rectangle {
     width: 400
-    height: 100
-    color: "lightgray"
+    height: 60
+    color: "transparent"
+
 
     // RangeSlider
     RangeSlider {
         id: rangeSlider
+        from: 0
+        to: 1
         anchors {
             left: parent.left  // Anchor to the left edge
             right: parent.right  // Anchor to the right edge
             top: parent.top  // Anchor to the top edge
             margins: 10  // Add some margin
         }
-        height: 60
-
-        from: 0
-        to: 1
 
 
         // Update backend properties when the slider changes

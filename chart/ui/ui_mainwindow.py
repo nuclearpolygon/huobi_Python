@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainwindowidACOY.ui'
+## Form generated from reading UI file 'mainwindowPuDnBs.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -70,6 +70,8 @@ class Ui_Form(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.chart_container.sizePolicy().hasHeightForWidth())
         self.chart_container.setSizePolicy(sizePolicy1)
+        self.chart_container.setAutoFillBackground(False)
+        self.chart_container.setStyleSheet(u"")
         self.verticalLayout_3 = QVBoxLayout(self.chart_container)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.slider = QQuickWidget(self.chart_container)
@@ -80,6 +82,7 @@ class Ui_Form(object):
         sizePolicy2.setHeightForWidth(self.slider.sizePolicy().hasHeightForWidth())
         self.slider.setSizePolicy(sizePolicy2)
         self.slider.setMaximumSize(QSize(16777215, 60))
+        self.slider.setStyleSheet(u"")
         self.slider.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
         self.verticalLayout_3.addWidget(self.slider)

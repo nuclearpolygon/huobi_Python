@@ -3,8 +3,7 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPu
 from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QBarCategoryAxis, QValueAxis, QChartView, QDateTimeAxis
 from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
-from PySide6.QtQuickWidgets import QQuickWidget
-from PySide6.QtGui import QPalette
+from PySide6.QtGui import QPalette, QColor, QFont
 from ui.ui_mainwindow import Ui_Form
 from datetime import datetime
 import sqlalchemy
@@ -55,6 +54,7 @@ class Main(QWidget, Ui_Form):
         # self.slider.setBackgroundRole()
         self.slider.rootContext().setContextProperty('backend', self.backend)
         self.slider.setSource('ui/slider.qml')
+        self.slider.setClearColor(QColor.fromString('transparent'))
         self.addChart('btcusdt', '1min')
         self.addChart('ethusdt', '1min')
 
@@ -70,10 +70,12 @@ class Main(QWidget, Ui_Form):
         series = QCandlestickSeries()
         chart = QChart()
         chart.setTitle(f"{symbol}_{interval}")
+        chart.setTitleBrush(QColor.fromString('white'))
         chart.legend().hide()
         # Create a chart view and add it to the layout
         chart_view = QChartView(chart)
         chart_view.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+        chart.setBackgroundBrush(QColor(50, 50, 50, 255))
         date_axis = QDateTimeAxis()
         self.charts.append((chart, date_axis))
         self._layout.addWidget(chart_view)
@@ -115,6 +117,9 @@ class Main(QWidget, Ui_Form):
         # Format the y-axis
         axis_y = chart.axes(Qt.Orientation.Vertical)[0]
         axis_y.setTitleText("Price")
+        axis_y.setTitleBrush(QColor.fromString('white'))
+        axis_y.setLabelsColor(QColor.fromString('white'))
+        date_axis.setLabelsColor(QColor.fromString('white'))
 
 
     def setup_database(self):
@@ -124,6 +129,7 @@ class Main(QWidget, Ui_Form):
         if not self.db.open():
             print("Failed to open database.")
             sys.exit(1)
+
 
     def updateStart(self, _start):
         for chart, date_axis in self.charts:
