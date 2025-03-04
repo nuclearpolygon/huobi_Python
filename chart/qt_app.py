@@ -1,9 +1,10 @@
 import sys
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QSizePolicy
 from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QBarCategoryAxis, QValueAxis, QChartView, QDateTimeAxis
 from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
 from PySide6.QtQuickWidgets import QQuickWidget
+from PySide6.QtGui import QPalette
 from ui.ui_mainwindow import Ui_Form
 from datetime import datetime
 import sqlalchemy
@@ -45,16 +46,15 @@ class Main(QWidget, Ui_Form):
         self.charts = []
         self.backend = Backend()
         self.setMinimumWidth(900)
+        self._layout = self.chart_container.layout()
         layout = self.chart_container.layout()
 
         # Set up the SQLite database connection
         self.setup_database()
 
-        self.slider = QQuickWidget()
-        self.slider.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
+        # self.slider.setBackgroundRole()
         self.slider.rootContext().setContextProperty('backend', self.backend)
         self.slider.setSource('ui/slider.qml')
-        layout.addWidget(self.slider)
         self.addChart('btcusdt', '1min')
         self.addChart('ethusdt', '1min')
 
@@ -73,9 +73,10 @@ class Main(QWidget, Ui_Form):
         chart.legend().hide()
         # Create a chart view and add it to the layout
         chart_view = QChartView(chart)
+        chart_view.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
         date_axis = QDateTimeAxis()
         self.charts.append((chart, date_axis))
-        self.layout().addWidget(chart_view)
+        self._layout.addWidget(chart_view)
         # Create a candlestick series
         series.setIncreasingColor(Qt.GlobalColor.green)
         series.setDecreasingColor(Qt.GlobalColor.red)
