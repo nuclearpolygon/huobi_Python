@@ -6,6 +6,7 @@ import sqlite3
 import time
 import datetime
 import logging, sys
+from PySide6.QtCore import QDateTime
 log = logging.getLogger(__name__)
 log.addHandler(logging.StreamHandler(sys.stdout))
 log.setLevel(logging.INFO)
@@ -33,18 +34,31 @@ Intervals = {
     CandlestickInterval.WEEK1: {'days': 7},
     CandlestickInterval.MON1: {'months': 1},
 }
+DatetimeIntervals = {
+    CandlestickInterval.MIN1: datetime.timedelta(0, 0, 0, minutes=1),
+    CandlestickInterval.MIN5: datetime.timedelta(0, 0, 0, minutes=5),
+    CandlestickInterval.MIN15: datetime.timedelta(0, 0, 0, minutes=15),
+    CandlestickInterval.MIN30: datetime.timedelta(0, 0, 0, minutes=30),
+    CandlestickInterval.MIN60: datetime.timedelta(0, 0, 0, hours=1),
+    CandlestickInterval.HOUR4: datetime.timedelta(0, 0, 0, hours=4),
+    CandlestickInterval.DAY1: datetime.timedelta(0, 0, 1),
+    CandlestickInterval.WEEK1: datetime.timedelta(0, 0, 7),
+    CandlestickInterval.MON1: datetime.timedelta(0, 1, 0),
+}
 
 def round_time(_interval):
     t = datetime.datetime.fromtimestamp(time.time())
     delta = datetime.timedelta(**Intervals[_interval])
     epoch = datetime.datetime(1970, 1, 1, tzinfo=t.tzinfo)
-    now = (time_floor(t, delta) - epoch).total_seconds()
+    now = datetime.datetime.fromtimestamp((time_floor(t, delta) - epoch).total_seconds())
     return now
 
 
 market_client = MarketClient(init_log=False)
-def fetch_data(symbol, interval):
-    size = 2000
+def fetch_data(symbol, interval, size=2000):
+    if size < 1:
+        return
+    size = min(size, 2000)
     list_obj = market_client.get_candlestick(symbol, interval, size)
     table_name = f'{symbol}_{interval}'
     data = []

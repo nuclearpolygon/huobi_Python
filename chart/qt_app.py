@@ -1,11 +1,14 @@
 import sys
+from pprint import pformat
+
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QSizePolicy
-from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QBarCategoryAxis, QValueAxis, QChartView, QDateTimeAxis
+from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QValueAxis, QChartView, QDateTimeAxis
 from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
 from PySide6.QtGui import QPalette, QColor, QFont
+
 from ui.ui_mainwindow import Ui_Form
-from datetime import datetime
+from datetime import datetime, timedelta
 import sqlalchemy
 from sqlalchemy.sql import text
 
@@ -13,6 +16,16 @@ import db
 
 engine = sqlalchemy.create_engine("sqlite:///./financial_data.db",
                                        execution_options={"sqlite_raw_colnames": True})
+
+
+def round_time(now, _timedelta):
+    return datetime.fromtimestamp(now.timestamp() - (now.timestamp() % _timedelta.total_seconds()))
+
+def time_range(start: datetime, end: datetime, _timedelta: timedelta):
+    while start + _timedelta != end - _timedelta:
+        start += _timedelta
+        yield start
+
 
 class Backend(QObject):
     def __init__(self):
@@ -35,6 +48,134 @@ class Backend(QObject):
     def updateSecondValue(self, value):
         self._second_value = value
         self.updateSecond.emit(value)
+
+
+class CandleChart(QChartView):
+    def __init__(self, symbol, interval):
+        self.table_name = f'{symbol}_{interval}'
+        self.symbol = symbol
+        self.interval = interval
+        self.timedelta = db.DatetimeIntervals[interval]
+        self.init_db()
+
+        # Create a candlestick chart
+        self.chart = QChart()
+        self.chart.setTitle(f"{symbol}_{interval}")
+        self.chart.setTitleBrush(QColor.fromString('white'))
+        self.chart.legend().hide()
+        self.chart.setBackgroundBrush(QColor(50, 50, 50, 255))
+        # Create a chart view and add it to the layout
+        super().__init__(self.chart)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+
+        # Create a candlestick series
+        self.series = QCandlestickSeries()
+        self.series.setIncreasingColor(Qt.GlobalColor.green)
+        self.series.setDecreasingColor(Qt.GlobalColor.red)
+        self.series.setBodyOutlineVisible(False)
+
+        # Fetch data from the SQLite database
+        query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
+        prev_date = None
+        while query.next():
+            date = datetime.fromisoformat(query.value("Date"))
+            if not prev_date:
+                prev_date = date - self.timedelta
+            if date - self.timedelta != prev_date:
+                for gap_date in time_range(prev_date, date, self.timedelta):
+                    candlestick_set = QCandlestickSet(
+                        timestamp=gap_date.timestamp() * 1000
+                    )
+                    self.series.append(candlestick_set)
+            prev_date = date
+            open_price = query.value("Open")
+            high_price = query.value("High")
+            low_price = query.value("Low")
+            close_price = query.value("Close")
+
+            # Create a candlestick set and add it to the series
+            candlestick_set = QCandlestickSet(
+                open_price, high_price, low_price, close_price,  date.timestamp() * 1000
+            )
+            self.series.append(candlestick_set)
+
+        # Add the series to the chart
+        self.chart.addSeries(self.series)
+
+        # Create axes
+        self.chart.createDefaultAxes()
+        self.axis_x = self.chart.axes(Qt.Orientation.Horizontal)[0]
+        self.axis_x.setVisible(False)
+        categories = self.axis_x.categories()
+        start_id = 0
+        end_id = -1
+        start = QDateTime.fromString(categories[start_id], 'dd.MM.yyyy hh:mm')
+        end = QDateTime.fromString(categories[end_id], 'dd.MM.yyyy hh:mm')
+
+        self.date_axis = QDateTimeAxis()
+        self.date_axis.setRange(start, end)
+        self.axis_x.setRange(categories[start_id], categories[end_id])
+        self.chart.addAxis(self.date_axis, Qt.AlignmentFlag.AlignBottom)
+
+        # Format the y-axis
+        self.axis_y = self.chart.axes(Qt.Orientation.Vertical)[0]
+        self.axis_y.setTitleText("Price")
+        self.axis_y.setTitleBrush(QColor.fromString('white'))
+        self.axis_y.setLabelsColor(QColor.fromString('white'))
+        self.date_axis.setLabelsColor(QColor.fromString('white'))
+
+    def init_db(self):
+        query = QSqlQuery(f"SELECT max(Date) as Date FROM {self.table_name}")
+        query.next()
+        date = query.value('Date')
+        last_date = datetime.fromtimestamp(QDateTime.fromString(date, 'yyyy-MM-dd hh:mm:ss').toSecsSinceEpoch())
+        now = datetime.now()
+        now = round_time(now, self.timedelta)
+        intervals_count = 0
+        while last_date < now:
+            now -= self.timedelta
+            intervals_count += 1
+        db.fetch_data(self.symbol, self.interval, intervals_count)
+
+    @property
+    def start(self):
+        return self.date_axis.min().toString('yyyy-MM-dd hh:mm:ss')
+
+    @start.setter
+    def start(self, value):
+        categories = self.axis_x.categories()
+        start = int(value * (len(categories) - 1))
+        self.axis_x.setMin(categories[start])
+        start_date = QDateTime.fromString(categories[start], 'dd.MM.yyyy hh:mm')
+        self.date_axis.setMin(start_date)
+        self.get_y_bounds()
+
+    @property
+    def end(self):
+        return self.date_axis.max().toString('yyyy-MM-dd hh:mm:ss')
+
+    @end.setter
+    def end(self, value):
+        categories = self.axis_x.categories()
+        end = int(value * (len(categories) - 1))
+        self.axis_x.setMax(categories[end])
+        end_date = QDateTime.fromString(categories[end], 'dd.MM.yyyy hh:mm')
+        self.date_axis.setMax(end_date)
+        self.get_y_bounds()
+
+    def get_y_bounds(self):
+        with engine.connect() as conn:
+            q = text(
+                f"SELECT max(High) FROM {self.table_name} "
+                "WHERE Date BETWEEN :r0 AND :r1"
+            )
+            _max = conn.execute(q, {'r0': self.start, 'r1': self.end}).scalar_one()
+            q = text(
+                f"SELECT min(Low) FROM {self.table_name} "
+                "WHERE Date BETWEEN :r0 AND :r1"
+            )
+            _min = conn.execute(q, {'r0': self.start, 'r1': self.end}).scalar_one()
+            self.axis_y.setRange(_min, _max)
 
 
 class Main(QWidget, Ui_Form):
@@ -62,65 +203,6 @@ class Main(QWidget, Ui_Form):
         self.backend.updateFirst.connect(self.updateStart)
         self.backend.updateSecond.connect(self.updateEnd)
 
-        # self.chart.mapToPosition(QPoint(self.series.attachedAxes()))
-
-    def addChart(self, symbol, interval):
-
-        # Create a candlestick chart
-        series = QCandlestickSeries()
-        chart = QChart()
-        chart.setTitle(f"{symbol}_{interval}")
-        chart.setTitleBrush(QColor.fromString('white'))
-        chart.legend().hide()
-        # Create a chart view and add it to the layout
-        chart_view = QChartView(chart)
-        chart_view.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
-        chart.setBackgroundBrush(QColor(50, 50, 50, 255))
-        date_axis = QDateTimeAxis()
-        self.charts.append((chart, date_axis))
-        self._layout.addWidget(chart_view)
-        # Create a candlestick series
-        series.setIncreasingColor(Qt.GlobalColor.green)
-        series.setDecreasingColor(Qt.GlobalColor.red)
-        series.setBodyOutlineVisible(False)
-
-        # Fetch data from the SQLite database
-        query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
-        while query.next():
-            date = datetime.fromisoformat(query.value("Date"))
-            open_price = query.value("Open")
-            high_price = query.value("High")
-            low_price = query.value("Low")
-            close_price = query.value("Close")
-
-            # Create a candlestick set and add it to the series
-            candlestick_set = QCandlestickSet(
-                open_price, high_price, low_price, close_price,  date.timestamp() * 1000
-            )
-            series.append(candlestick_set)
-
-        # Add the series to the chart
-        chart.addSeries(series)
-        chart.createDefaultAxes()
-
-        axis_x = chart.axes(Qt.Orientation.Horizontal)[0]
-        axis_x.setVisible(False)
-        categories = axis_x.categories()
-        start_id = 0
-        end_id = -1
-        start = QDateTime.fromString(categories[start_id], 'dd.MM.yyyy hh:mm')
-        end = QDateTime.fromString(categories[end_id], 'dd.MM.yyyy hh:mm')
-        date_axis.setRange(start, end)
-        axis_x.setRange(categories[start_id], categories[end_id])
-        chart.addAxis(date_axis, Qt.AlignmentFlag.AlignBottom)
-
-        # Format the y-axis
-        axis_y = chart.axes(Qt.Orientation.Vertical)[0]
-        axis_y.setTitleText("Price")
-        axis_y.setTitleBrush(QColor.fromString('white'))
-        axis_y.setLabelsColor(QColor.fromString('white'))
-        date_axis.setLabelsColor(QColor.fromString('white'))
-
 
     def setup_database(self):
         # Set up the SQLite database connection
@@ -132,55 +214,24 @@ class Main(QWidget, Ui_Form):
 
 
     def updateStart(self, _start):
-        for chart, date_axis in self.charts:
-            axis_x = chart.axes(Qt.Orientation.Horizontal)[0]
-            categories = axis_x.categories()
-            start = int(_start * (len(categories) - 1))
-            axis_x.setMin(categories[start])
-            start_date = QDateTime.fromString(categories[start], 'dd.MM.yyyy hh:mm')
-            date_axis.setMin(start_date)
-            y_axis = chart.axes(Qt.Orientation.Vertical)[0]
-            y_axis.setRange(*self.get_y_bounds(start_date, date_axis.max(), chart.title()))
+        for chart in self.charts:
+            chart.start = _start
 
     def updateEnd(self, _end):
-        for chart, date_axis in self.charts:
-            axis_x = chart.axes(Qt.Orientation.Horizontal)[0]
-            categories = axis_x.categories()
-            end = int(_end * (len(categories) - 1))
-            axis_x.setMax(categories[end])
-            end_date = QDateTime.fromString(categories[end], 'dd.MM.yyyy hh:mm')
-            date_axis.setMax(end_date)
-            y_axis = chart.axes(Qt.Orientation.Vertical)[0]
-            y_axis.setRange(*self.get_y_bounds(date_axis.min(), end_date, chart.title()))
+        for chart in self.charts:
+            chart.end = _end
 
-
-    def get_y_bounds(self, r0: QDateTime, r1: QDateTime, table_name):
-        r0 = r0.toString('yyyy-MM-dd hh:mm:ss')
-        r1 = r1.toString('yyyy-MM-dd hh:mm:ss')
-        if r0 > r1:
-            r0, r1 = (r1, r0)
-        with engine.connect() as conn:
-            q = text(
-                f"SELECT max(High) FROM {table_name} "
-                "WHERE Date BETWEEN :r0 AND :r1"
-            )
-            _max = conn.execute(q, {'r0': r0, 'r1': r1}).scalar_one()
-            q = text(
-                f"SELECT min(Low) FROM {table_name} "
-                "WHERE Date BETWEEN :r0 AND :r1"
-            )
-            _min = conn.execute(q, {'r0': r0, 'r1': r1}).scalar_one()
-            # log.info(f'''GET BOUNDS:
-            # table   {table_name}
-            # range:  {r0} - {r1}
-            # bounds: {_min} - {_max}''')
-            return _min, _max
 
 
     def closeEvent(self, event):
         # Close the database connection when the window is closed
         self.db.close()
         event.accept()
+
+    def addChart(self, symbol, interval):
+        chart = CandleChart(symbol, interval)
+        self._layout.addWidget(chart)
+        self.charts.append(chart)
 
 
 app = QApplication()
