@@ -1,11 +1,11 @@
 import sys
 from pprint import pformat
 
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QSizePolicy
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QSizePolicy, QGraphicsScene
 from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QValueAxis, QChartView, QDateTimeAxis
-from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal
+from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal, QRect
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
-from PySide6.QtGui import QPalette, QColor, QFont
+from PySide6.QtGui import QPalette, QColor, QFont, QIcon
 
 from ui.ui_mainwindow import Ui_Form
 from datetime import datetime, timedelta
@@ -48,10 +48,19 @@ class Backend(QObject):
     def updateSecondValue(self, value):
         self._second_value = value
         self.updateSecond.emit(value)
+        
+
+class CornerWidget(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setFixedSize(150, 100)
+        self.setStyleSheet('background-color: black')
+        self.raise_()
 
 
 class CandleChart(QChartView):
     def __init__(self, symbol, interval):
+        super().__init__()
         self.table_name = f'{symbol}_{interval}'
         self.symbol = symbol
         self.interval = interval
@@ -59,20 +68,41 @@ class CandleChart(QChartView):
         self.init_db()
 
         # Create a candlestick chart
-        self.chart = QChart()
-        self.chart.setTitle(f"{symbol}_{interval}")
-        self.chart.setTitleBrush(QColor.fromString('white'))
-        self.chart.legend().hide()
-        self.chart.setBackgroundBrush(QColor(50, 50, 50, 255))
+        self._chart = QChart()
+        self._chart.setTitle(f"{symbol}_{interval}")
+        self._chart.setTitleBrush(QColor.fromString('white'))
+        self._chart.legend().hide()
+        self._chart.setBackgroundBrush(QColor(50, 50, 50, 255))
         # Create a chart view and add it to the layout
-        super().__init__(self.chart)
-        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
+        self.setChart(self._chart)
+        size_policy = QSizePolicy()
+        size_policy.setVerticalStretch(1)
+        size_policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
+        size_policy.setVerticalPolicy(QSizePolicy.Policy.Minimum)
+        self.setSizePolicy(size_policy)
+
+        # set scene
+        # self.info_widget = CornerWidget(self)
+        self.pushButton_close = QPushButton()
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        self.pushButton_close.setSizePolicy(sizePolicy)
+        icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit))
+        self.pushButton_close.setIcon(icon)
+        self.pushButton_close.setFlat(True)
+        self.pushButton_close.clicked.connect(self._close)
+        button = self.scene().addWidget(self.pushButton_close)
+        button.setPos(50, 50)
+
+
+
 
         # Create a candlestick series
-        self.series = QCandlestickSeries()
-        self.series.setIncreasingColor(Qt.GlobalColor.green)
-        self.series.setDecreasingColor(Qt.GlobalColor.red)
-        self.series.setBodyOutlineVisible(False)
+        self._series = QCandlestickSeries()
+        self._series.setIncreasingColor(Qt.GlobalColor.green)
+        self._series.setDecreasingColor(Qt.GlobalColor.red)
+        self._series.setBodyOutlineVisible(False)
 
         # Fetch data from the SQLite database
         query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
@@ -86,7 +116,7 @@ class CandleChart(QChartView):
                     candlestick_set = QCandlestickSet(
                         timestamp=gap_date.timestamp() * 1000
                     )
-                    self.series.append(candlestick_set)
+                    self._series.append(candlestick_set)
             prev_date = date
             open_price = query.value("Open")
             high_price = query.value("High")
@@ -97,14 +127,14 @@ class CandleChart(QChartView):
             candlestick_set = QCandlestickSet(
                 open_price, high_price, low_price, close_price,  date.timestamp() * 1000
             )
-            self.series.append(candlestick_set)
+            self._series.append(candlestick_set)
 
         # Add the series to the chart
-        self.chart.addSeries(self.series)
+        self._chart.addSeries(self._series)
 
         # Create axes
-        self.chart.createDefaultAxes()
-        self.axis_x = self.chart.axes(Qt.Orientation.Horizontal)[0]
+        self._chart.createDefaultAxes()
+        self.axis_x = self._chart.axes(Qt.Orientation.Horizontal)[0]
         self.axis_x.setVisible(False)
         categories = self.axis_x.categories()
         start_id = 0
@@ -113,16 +143,19 @@ class CandleChart(QChartView):
         end = QDateTime.fromString(categories[end_id], 'dd.MM.yyyy hh:mm')
 
         self.date_axis = QDateTimeAxis()
+        self.date_axis.setTickCount(8)
         self.date_axis.setRange(start, end)
         self.axis_x.setRange(categories[start_id], categories[end_id])
-        self.chart.addAxis(self.date_axis, Qt.AlignmentFlag.AlignBottom)
+        self._chart.addAxis(self.date_axis, Qt.AlignmentFlag.AlignBottom)
 
         # Format the y-axis
-        self.axis_y = self.chart.axes(Qt.Orientation.Vertical)[0]
+        self.axis_y = self._chart.axes(Qt.Orientation.Vertical)[0]
         self.axis_y.setTitleText("Price")
         self.axis_y.setTitleBrush(QColor.fromString('white'))
         self.axis_y.setLabelsColor(QColor.fromString('white'))
         self.date_axis.setLabelsColor(QColor.fromString('white'))
+
+        self.get_y_bounds()
 
     def init_db(self):
         query = QSqlQuery(f"SELECT max(Date) as Date FROM {self.table_name}")
@@ -177,6 +210,9 @@ class CandleChart(QChartView):
             _min = conn.execute(q, {'r0': self.start, 'r1': self.end}).scalar_one()
             self.axis_y.setRange(_min, _max)
 
+    def _close(self):
+        self.close()
+
 
 class Main(QWidget, Ui_Form):
     def __init__(self):
@@ -187,7 +223,6 @@ class Main(QWidget, Ui_Form):
         self.backend = Backend()
         self.setMinimumWidth(900)
         self._layout = self.chart_container.layout()
-        layout = self.chart_container.layout()
 
         # Set up the SQLite database connection
         self.setup_database()
@@ -196,12 +231,18 @@ class Main(QWidget, Ui_Form):
         self.slider.rootContext().setContextProperty('backend', self.backend)
         self.slider.setSource('ui/slider.qml')
         self.slider.setClearColor(QColor.fromString('transparent'))
-        self.addChart('btcusdt', '1min')
-        self.addChart('ethusdt', '1min')
 
-
+        self.pushButton_add.clicked.connect(self.addChart)
         self.backend.updateFirst.connect(self.updateStart)
         self.backend.updateSecond.connect(self.updateEnd)
+        
+    @property
+    def symbol(self):
+        return self.comboBox_symbol.currentText()
+    
+    @property
+    def interval(self):
+        return self.comboBox_interval.currentText()
 
 
     def setup_database(self):
@@ -221,20 +262,19 @@ class Main(QWidget, Ui_Form):
         for chart in self.charts:
             chart.end = _end
 
-
-
     def closeEvent(self, event):
         # Close the database connection when the window is closed
         self.db.close()
         event.accept()
 
-    def addChart(self, symbol, interval):
-        chart = CandleChart(symbol, interval)
+    def addChart(self):
+        chart = CandleChart(self.symbol, self.interval)
         self._layout.addWidget(chart)
         self.charts.append(chart)
 
 
-app = QApplication()
-win = Main()
-win.show()
-app.exec()
+if __name__ == '__main__':
+    app = QApplication()
+    win = Main()
+    win.show()
+    app.exec()
