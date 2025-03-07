@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainwindowPuDnBs.ui'
+## Form generated from reading UI file 'mainwindowzjwLqF.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtQuickWidgets import QQuickWidget
-from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QPushButton,
-    QSizePolicy, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QDateTimeEdit, QHBoxLayout,
+    QPushButton, QSizePolicy, QSpacerItem, QVBoxLayout,
+    QWidget)
 
 class Ui_Form(object):
     def setupUi(self, Form):
@@ -74,18 +74,32 @@ class Ui_Form(object):
         self.chart_container.setStyleSheet(u"")
         self.verticalLayout_3 = QVBoxLayout(self.chart_container)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.slider = QQuickWidget(self.chart_container)
-        self.slider.setObjectName(u"slider")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.widget = QWidget(self.chart_container)
+        self.widget.setObjectName(u"widget")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.slider.sizePolicy().hasHeightForWidth())
-        self.slider.setSizePolicy(sizePolicy2)
-        self.slider.setMaximumSize(QSize(16777215, 60))
-        self.slider.setStyleSheet(u"")
-        self.slider.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
+        sizePolicy2.setHeightForWidth(self.widget.sizePolicy().hasHeightForWidth())
+        self.widget.setSizePolicy(sizePolicy2)
+        self.horizontalLayout_2 = QHBoxLayout(self.widget)
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
+        self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.verticalLayout_3.addWidget(self.slider)
+        self.horizontalLayout_2.addItem(self.horizontalSpacer)
+
+        self.dateTimeEdit_start = QDateTimeEdit(self.widget)
+        self.dateTimeEdit_start.setObjectName(u"dateTimeEdit_start")
+
+        self.horizontalLayout_2.addWidget(self.dateTimeEdit_start)
+
+        self.dateTimeEdit_end = QDateTimeEdit(self.widget)
+        self.dateTimeEdit_end.setObjectName(u"dateTimeEdit_end")
+
+        self.horizontalLayout_2.addWidget(self.dateTimeEdit_end)
+
+
+        self.verticalLayout_3.addWidget(self.widget)
 
 
         self.verticalLayout.addWidget(self.chart_container)
