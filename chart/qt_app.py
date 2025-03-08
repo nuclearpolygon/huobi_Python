@@ -1,11 +1,12 @@
 import sys
 from pprint import pformat
 
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QSizePolicy, QGraphicsScene
-from PySide6.QtCharts import QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart, QValueAxis, QChartView, QDateTimeAxis
-from PySide6.QtCore import QDateTime, Qt, QObject, Slot, Property, Signal, QRect, QMargins, QPoint
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
+from PySide6.QtCharts import (QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart,
+                              QChartView, QDateTimeAxis)
+from PySide6.QtCore import QDateTime, Qt, Signal, QPoint
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
-from PySide6.QtGui import QPalette, QColor, QFont, QIcon
+from PySide6.QtGui import  QColor, QFont, QIcon
 
 from ui.ui_mainwindow import Ui_Form
 from ui.ui_corner_widget import Ui_cornerWidget
@@ -106,6 +107,7 @@ class CandleChart(QChartView):
         self._series.setIncreasingColor(Qt.GlobalColor.green)
         self._series.setDecreasingColor(Qt.GlobalColor.red)
         self._series.setBodyOutlineVisible(False)
+        self._series.setMinimumColumnWidth(2)
         self._series.hovered.connect(self.onHovered)
 
         # Fetch data from the SQLite database
@@ -171,6 +173,7 @@ class CandleChart(QChartView):
         now = datetime.now()
         now = round_time(now, self.timedelta)
         intervals_count = 0
+        # TODO fix infinite loop (when adding 1 day interval)
         while last_date < now:
             now -= self.timedelta
             intervals_count += 1
@@ -270,6 +273,8 @@ class CandleChart(QChartView):
             end_date = QDateTime.fromString(end_category, self.timeformat)
             self.date_axis.setMin(start_date)
             self.date_axis.setMax(end_date)
+            _range = max(max_offset - min_offset, 1)
+            self._series.setBodyWidth(width / _range)
             self.get_y_bounds()
             return super().mouseMoveEvent(event)
         if event.buttons() == Qt.MouseButton.RightButton:
@@ -287,6 +292,8 @@ class CandleChart(QChartView):
             end_date = QDateTime.fromString(end_category, self.timeformat)
             self.date_axis.setMin(start_date)
             self.date_axis.setMax(end_date)
+            _range = max(max_offset - min_offset, 1)
+            self._series.setBodyWidth(width / _range)
             self.get_y_bounds()
             return super().mouseMoveEvent(event)
         return super().mouseMoveEvent(event)
