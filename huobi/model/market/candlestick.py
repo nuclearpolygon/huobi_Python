@@ -27,6 +27,10 @@ class Candlestick:
         self.count = 0
         self.vol = 0.0  # self.volume = 0.0
 
+    @property
+    def date(self):
+        return datetime.datetime.fromtimestamp(self.id)
+
     def print_object(self, format_data=""):
         from huobi.utils.print_mix_object import PrintBasic
         PrintBasic.print_basic(self.id, format_data + "Id")

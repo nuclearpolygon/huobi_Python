@@ -1,27 +1,49 @@
 import sys
 from pprint import pformat
+from huobi.client.market import MarketClient, Candlestick
+from huobi.constant import *
 
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
 from PySide6.QtCharts import (QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart,
                               QChartView, QDateTimeAxis)
 from PySide6.QtCore import QDateTime, Qt, Signal, QPoint
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
-from PySide6.QtGui import  QColor, QFont, QIcon
+from PySide6.QtGui import QColor, QFont, QIcon
 
 from ui.ui_mainwindow import Ui_Form
 from ui.ui_corner_widget import Ui_cornerWidget
 from datetime import datetime, timedelta
-import sqlalchemy
-from sqlalchemy.sql import text
 
-import db
+Intervals = {
+    CandlestickInterval.MIN1: {'minutes': 1},
+    CandlestickInterval.MIN5: {'minutes': 5},
+    CandlestickInterval.MIN15: {'minutes': 15},
+    CandlestickInterval.MIN30: {'minutes': 30},
+    CandlestickInterval.MIN60: {'hours': 1},
+    CandlestickInterval.HOUR4: {'hours': 4},
+    CandlestickInterval.DAY1: {'days': 1},
+    CandlestickInterval.WEEK1: {'days': 7},
+    CandlestickInterval.MON1: {'months': 1},
+}
+DatetimeIntervals = {
+    CandlestickInterval.MIN1: timedelta(0, 0, 0, minutes=1),
+    CandlestickInterval.MIN5: timedelta(0, 0, 0, minutes=5),
+    CandlestickInterval.MIN15: timedelta(0, 0, 0, minutes=15),
+    CandlestickInterval.MIN30: timedelta(0, 0, 0, minutes=30),
+    CandlestickInterval.MIN60: timedelta(0, 0, 0, hours=1),
+    CandlestickInterval.HOUR4: timedelta(0, 0, 0, hours=4),
+    CandlestickInterval.DAY1: timedelta(0, 0, 1),
+    CandlestickInterval.WEEK1: timedelta(0, 0, 7),
+    CandlestickInterval.MON1: timedelta(0, 1, 0),
+}
 
-engine = sqlalchemy.create_engine("sqlite:///./financial_data.db",
-                                       execution_options={"sqlite_raw_colnames": True})
+
+market_client = MarketClient(init_log=False)
 
 
 def round_time(now: datetime, _timedelta: timedelta) -> datetime:
     return datetime.fromtimestamp(now.timestamp() - (now.timestamp() % _timedelta.total_seconds()))
+
 
 def qround_time(time: QDateTime, _timedelta: timedelta) -> QDateTime:
     rounded = round_time(time.toPython(), _timedelta).timestamp()
@@ -50,15 +72,16 @@ class CandleChart(QChartView):
         self.symbol = symbol
         self.interval = interval
         self.timeformat = 'dd.MM.yyyy hh:mm'
-        self.bd_timeformat = 'yyyy-MM-dd hh:mm:ss'
+        self.db_timeformat = 'yyyy-MM-dd hh:mm:ss'
+        self.py_db_timeformat = 'Y-M-dd hh:mm:ss'
         self._pressed_pos = QPoint()
         self._min_id = 0
         self._max_id = -1
-        self.timedelta = db.DatetimeIntervals[interval]
+        self.timedelta = DatetimeIntervals[interval]
         self.init_db()
 
-        self.viewport().setContentsMargins(0,0,0,0)
-        self.setContentsMargins(0,0,0,0)
+        self.viewport().setContentsMargins(0, 0, 0, 0)
+        self.setContentsMargins(0, 0, 0, 0)
         self.setRubberBandSelectionMode(Qt.ItemSelectionMode.ContainsItemShape)
         self.setInteractive(True)
         # self.setDragMode(self.DragMode.ScrollHandDrag)
@@ -99,9 +122,6 @@ class CandleChart(QChartView):
         self.pushButton_close.setStyleSheet('background-color: transparent')
         self.item_button = self.scene().addWidget(self.pushButton_close)
 
-
-
-
         # Create a candlestick series
         self._series = QCandlestickSeries()
         self._series.setIncreasingColor(Qt.GlobalColor.green)
@@ -114,6 +134,8 @@ class CandleChart(QChartView):
         query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
         prev_date = None
         while query.next():
+            if not query.value("Date"):
+                continue
             date = datetime.fromisoformat(query.value("Date"))
             if not prev_date:
                 prev_date = date - self.timedelta
@@ -145,8 +167,8 @@ class CandleChart(QChartView):
         categories = self.axis_x.categories()
         start_id = 0
         end_id = -1
-        start = QDateTime.fromString(categories[start_id], 'dd.MM.yyyy hh:mm')
-        end = QDateTime.fromString(categories[end_id], 'dd.MM.yyyy hh:mm')
+        start = QDateTime.fromString(categories[start_id], self.timeformat)
+        end = QDateTime.fromString(categories[end_id], self.timeformat)
 
         self.date_axis = QDateTimeAxis()
         self.date_axis.setTickCount(8)
@@ -165,23 +187,72 @@ class CandleChart(QChartView):
         self._startChanged.emit(self.date_axis.min())
         self.get_y_bounds()
 
+    def fetch_data(self, size=2000):
+        if size < 1:
+            return
+        size = min(size, 2000)
+        list_obj = market_client.get_candlestick(self.symbol, self.interval, size)
+        table_name = f'{self.symbol}_{self.interval}'
+        kline: Candlestick
+        # log.info('START FETCHING DATA')
+        QSqlQuery(f'''
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                Date DATETIME PRIMARY KEY,
+                Open REAL,
+                High REAL,
+                Low REAL,
+                Close REAL,
+                Volume INTEGER
+            )
+            ''').exec()
+        date = []
+        _open = []
+        high = []
+        low = []
+        close = []
+        vol = []
+        for kline in list_obj:
+            date.append(kline.date.isoformat())
+            _open.append(kline.open)
+            high.append(kline.high)
+            low.append(kline.low)
+            close.append(kline.close)
+            vol.append(kline.vol)
+            # print(kline.asTuple())
+            # date = pd.to_datetime(kline.id, unit='s')
+            # print(date)
+            # print('=============')
+        q = QSqlQuery(f'INSERT INTO {table_name} (Date, Open, High, Low, Close, Volume) '
+                      f'VALUES ({("?, " * 6)[:-2]}) '
+                      f'ON CONFLICT(Date) DO NOTHING;')
+        q.bindValue(0, date)
+        q.bindValue(1, _open)
+        q.bindValue(2, high)
+        q.bindValue(3, low)
+        q.bindValue(4, close)
+        q.bindValue(5, vol)
+        q.execBatch()
+
     def init_db(self):
         query = QSqlQuery(f"SELECT max(Date) as Date FROM {self.table_name}")
         query.next()
         date = query.value('Date')
-        last_date = datetime.fromtimestamp(QDateTime.fromString(date, self.bd_timeformat).toSecsSinceEpoch())
-        now = datetime.now()
-        now = round_time(now, self.timedelta)
-        intervals_count = 0
-        # TODO fix infinite loop (when adding 1 day interval)
-        while last_date < now:
-            now -= self.timedelta
-            intervals_count += 1
-        db.fetch_data(self.symbol, self.interval, intervals_count)
+        if date:
+            last_date = datetime.fromtimestamp(QDateTime.fromString(date, self.db_timeformat).toSecsSinceEpoch())
+            now = datetime.now()
+            now = round_time(now, self.timedelta)
+            intervals_count = 0
+            # TODO fix infinite loop (when adding 1 day interval)
+            while last_date < now:
+                now -= self.timedelta
+                intervals_count += 1
+        else:
+            intervals_count = 2000
+        self.fetch_data(intervals_count)
 
     @property
     def start(self):
-        return self.date_axis.min().toString(self.bd_timeformat)
+        return self.date_axis.min().toString(self.db_timeformat)
 
     @start.setter
     def start(self, value: QDateTime):
@@ -202,7 +273,7 @@ class CandleChart(QChartView):
 
     @property
     def end(self):
-        return self.date_axis.max().toString(self.bd_timeformat)
+        return self.date_axis.max().toString(self.db_timeformat)
 
     @end.setter
     def end(self, value):
@@ -222,17 +293,23 @@ class CandleChart(QChartView):
         # self._endChanged.emit(value)
 
     def get_y_bounds(self):
-        with engine.connect() as conn:
-            q = text(
-                f"SELECT max(High) FROM {self.table_name} "
-                "WHERE Date BETWEEN :r0 AND :r1"
-            )
-            _max = conn.execute(q, {'r0': self.start, 'r1': self.end}).scalar_one()
-            q = text(
-                f"SELECT min(Low) FROM {self.table_name} "
-                "WHERE Date BETWEEN :r0 AND :r1"
-            )
-            _min = conn.execute(q, {'r0': self.start, 'r1': self.end}).scalar_one()
+        q = QSqlQuery(
+            f"SELECT max(High) FROM {self.table_name} "
+            "WHERE Date BETWEEN :r0 AND :r1"
+        )
+        q.bindValue('r0:', self.start)
+        q.bindValue('r1:', self.end)
+        q.first()
+        _max = q.value('Date')
+        q = QSqlQuery(
+            f"SELECT min(Low) FROM {self.table_name} "
+            "WHERE Date BETWEEN :r0 AND :r1"
+        )
+        q.bindValue('r0:', self.start)
+        q.bindValue('r1:', self.end)
+        q.first()
+        _min = q.value('Date')
+        if _min and _max:
             self.axis_y.setRange(_min, _max)
 
     def _close(self):
