@@ -61,6 +61,18 @@ class CornerWidget(QWidget, Ui_cornerWidget):
         super().__init__()
         self.setupUi(self)
 
+    def setValuse(self, status, _set: QCandlestickSet):
+        self.label_open.setText(f'{_set.open()}')
+        self.label_low.setText(f'{_set.low()}')
+        self.label_high.setText(f'{_set.high()}')
+        self.label_close.setText(f'{_set.close()}')
+        change = -(_set.open() - _set.close()) / _set.open() * 100
+        if change < 0:
+            color = QColor.fromString('red')
+        else:
+            color = QColor.fromString('green')
+        self.label_change.setText(f'{change:.2f}%')
+
 
 class CandleChart(QChartView):
     _startChanged = Signal(QDateTime)
@@ -128,7 +140,7 @@ class CandleChart(QChartView):
         self._series.setDecreasingColor(Qt.GlobalColor.red)
         self._series.setBodyOutlineVisible(False)
         self._series.setMinimumColumnWidth(2)
-        self._series.hovered.connect(self.onHovered)
+        self._series.hovered.connect(self.widget_info.setValuse)
 
         # Fetch data from the SQLite database
         query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
@@ -320,12 +332,6 @@ class CandleChart(QChartView):
         button_height = self.item_button.size().height()
         self.item_button.setPos(event.size().width() - button_width - 10, button_height / 2)
         return super().resizeEvent(event)
-
-    def onHovered(self, status, _set: QCandlestickSet):
-        self.widget_info.label_open.setText(f'{_set.open()}')
-        self.widget_info.label_low.setText(f'{_set.low()}')
-        self.widget_info.label_high.setText(f'{_set.high()}')
-        self.widget_info.label_close.setText(f'{_set.close()}')
 
     def mousePressEvent(self, event):
         self._pressed_pos = event.scenePosition()
