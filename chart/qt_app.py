@@ -26,15 +26,15 @@ Intervals = {
     CandlestickInterval.MON1: {'months': 1},
 }
 DatetimeIntervals = {
-    CandlestickInterval.MIN1: timedelta(0, 0, 0, minutes=1),
-    CandlestickInterval.MIN5: timedelta(0, 0, 0, minutes=5),
-    CandlestickInterval.MIN15: timedelta(0, 0, 0, minutes=15),
-    CandlestickInterval.MIN30: timedelta(0, 0, 0, minutes=30),
-    CandlestickInterval.MIN60: timedelta(0, 0, 0, hours=1),
-    CandlestickInterval.HOUR4: timedelta(0, 0, 0, hours=4),
-    CandlestickInterval.DAY1: timedelta(0, 0, 1),
-    CandlestickInterval.WEEK1: timedelta(0, 0, 7),
-    CandlestickInterval.MON1: timedelta(0, 1, 0),
+    CandlestickInterval.MIN1: timedelta(minutes=1),
+    CandlestickInterval.MIN5: timedelta(minutes=5),
+    CandlestickInterval.MIN15: timedelta(minutes=15),
+    CandlestickInterval.MIN30: timedelta(minutes=30),
+    CandlestickInterval.MIN60: timedelta(hours=1),
+    CandlestickInterval.HOUR4: timedelta(hours=4),
+    CandlestickInterval.DAY1: timedelta(days=1),
+    CandlestickInterval.WEEK1: timedelta(days=7),
+    CandlestickInterval.MON1: timedelta(days=30),
 }
 
 
@@ -72,7 +72,7 @@ class CandleChart(QChartView):
         self.symbol = symbol
         self.interval = interval
         self.timeformat = 'dd.MM.yyyy hh:mm'
-        self.db_timeformat = 'yyyy-MM-dd hh:mm:ss'
+        self.db_timeformat = 'yyyy-MM-ddThh:mm:ss'
         self.py_db_timeformat = 'Y-M-dd hh:mm:ss'
         self._pressed_pos = QPoint()
         self._min_id = 0
