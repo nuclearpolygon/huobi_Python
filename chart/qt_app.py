@@ -76,8 +76,9 @@ class CornerWidget(QWidget, Ui_cornerWidget):
 
 
 class CandleChart(QChartView):
-    _startChanged = Signal(QDateTime)
-    _endChanged = Signal(QDateTime)
+    startChanged = Signal(QDateTime)
+    endChanged = Signal(QDateTime)
+    rangeChanged = Signal(QDateTime, QDateTime)
 
     def __init__(self, symbol, interval):
         super().__init__()
@@ -91,6 +92,13 @@ class CandleChart(QChartView):
         self._min_id = 0
         self._max_id = -1
         self.timedelta = DatetimeIntervals[interval]
+        self.item_button = None
+        self._series = QCandlestickSeries()
+        self._chart = QChart()
+        self.axis_x = None
+        self.axis_y = None
+        self.date_axis = None
+
         self.init_db()
 
         self.viewport().setContentsMargins(0, 0, 0, 0)
@@ -101,50 +109,52 @@ class CandleChart(QChartView):
         self.setMouseTracking(True)
         self.setOptimizationFlag(self.OptimizationFlag.DontAdjustForAntialiasing)
 
-        # Create a candlestick chart
-        self._chart = QChart()
-        self._chart.setTitle(f"{symbol}_{interval}")
-        self._chart.setTitleBrush(QColor.fromString('white'))
-        self._chart.legend().hide()
-        self._chart.setBackgroundVisible(False)
-        # self._chart.setBackgroundBrush(QColor(50, 50, 50, 255))
-        # Create a chart view and add it to the layout
-        self.setChart(self._chart)
-        size_policy = QSizePolicy()
-        size_policy.setVerticalStretch(1)
-        size_policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
-        size_policy.setVerticalPolicy(QSizePolicy.Policy.Minimum)
-        self.setSizePolicy(size_policy)
+        # size_policy = QSizePolicy()
+        # size_policy.setVerticalStretch(1)
+        # size_policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
+        # size_policy.setVerticalPolicy(QSizePolicy.Policy.MinimumExpanding)
+        # self.setSizePolicy(size_policy)
 
-        # set scene
-        self.widget_info = CornerWidget()
-        self.item_info = self.scene().addWidget(self.widget_info)
+        self.setup_scene()
+        self.setup_chart()
+        self.get_y_bounds()
+
+    def setup_scene(self):
+        widget_info = CornerWidget()
+        self.scene().addWidget(widget_info)
         margins = self._chart.margins()
-        margins.setLeft(margins.left() + self.widget_info.width())
+        margins.setLeft(margins.left() + widget_info.width())
         self._chart.setMargins(margins)
 
-        self.pushButton_close = QPushButton()
+        pushButton_close = QPushButton()
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        self.pushButton_close.setSizePolicy(sizePolicy)
+        pushButton_close.setSizePolicy(sizePolicy)
         icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit))
-        self.pushButton_close.setIcon(icon)
-        self.pushButton_close.setFlat(True)
-        self.pushButton_close.clicked.connect(self._close)
-        self.pushButton_close.setStyleSheet('background-color: transparent')
-        self.item_button = self.scene().addWidget(self.pushButton_close)
+        pushButton_close.setIcon(icon)
+        pushButton_close.setFlat(True)
+        pushButton_close.clicked.connect(self._close)
+        pushButton_close.setStyleSheet('background-color: transparent')
+        self.item_button = self.scene().addWidget(pushButton_close)
 
+        # connect signals
+        self._series.hovered.connect(widget_info.setValuse)
+
+    def setup_chart(self):
+        self._chart.setTitle(f"{self.symbol}_{self.interval}")
+        self._chart.setTitleBrush(QColor.fromString('white'))
+        self._chart.legend().hide()
+        self._chart.setBackgroundVisible(False)
+        self.setChart(self._chart)
         # Create a candlestick series
-        self._series = QCandlestickSeries()
         self._series.setIncreasingColor(Qt.GlobalColor.green)
         self._series.setDecreasingColor(Qt.GlobalColor.red)
         self._series.setBodyOutlineVisible(False)
         self._series.setMinimumColumnWidth(2)
-        self._series.hovered.connect(self.widget_info.setValuse)
 
         # Fetch data from the SQLite database
-        query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {symbol}_{interval} ORDER BY Date")
+        query = QSqlQuery(f"SELECT Date, Open, High, Low, Close FROM {self.symbol}_{self.interval} ORDER BY Date")
         prev_date = None
         while query.next():
             if not query.value("Date"):
@@ -197,8 +207,7 @@ class CandleChart(QChartView):
         self.date_axis.setLabelsColor(QColor.fromString('white'))
         self.date_axis.setLabelsFont(QFont('mono', 10))
 
-        self._startChanged.emit(self.date_axis.min())
-        self.get_y_bounds()
+        self.startChanged.emit(self.date_axis.min())
 
     def fetch_data(self, size=2000):
         if size < 1:
@@ -263,7 +272,7 @@ class CandleChart(QChartView):
         value = qround_time(value, self.timedelta)
         categories = self.axis_x.categories()
         first = QDateTime.fromString(categories[0], self.timeformat)
-        last = QDateTime.fromString(categories[-2], self.timeformat)
+        last = QDateTime.fromString(categories[-1], self.timeformat)
         if value < first:
             value = first
         if value > last:
@@ -273,7 +282,7 @@ class CandleChart(QChartView):
         self.axis_x.setMin(value.toString(self.timeformat))
         self.date_axis.setMin(value)
         self.get_y_bounds()
-        # self._startChanged.emit(value)
+        self.startChanged.emit(value)
 
     @property
     def end(self):
@@ -283,7 +292,7 @@ class CandleChart(QChartView):
     def end(self, value):
         value = qround_time(value, self.timedelta)
         categories = self.axis_x.categories()
-        first = QDateTime.fromString(categories[1], self.timeformat)
+        first = QDateTime.fromString(categories[0], self.timeformat)
         last = QDateTime.fromString(categories[-1], self.timeformat)
         if value > last:
             value = last
@@ -294,7 +303,7 @@ class CandleChart(QChartView):
         self.axis_x.setMax(value.toString(self.timeformat))
         self.date_axis.setMax(value)
         self.get_y_bounds()
-        # self._endChanged.emit(value)
+        self.endChanged.emit(value)
 
     def get_y_bounds(self):
         q = QSqlQuery()
@@ -346,15 +355,14 @@ class CandleChart(QChartView):
             max_offset = min(max(self._max_id - offset_id, 0), max_id)
             start_category = self.axis_x.at(min_offset)
             end_category = self.axis_x.at(max_offset)
-            self.axis_x.setMin(start_category)
-            self.axis_x.setMax(end_category)
             start_date = QDateTime.fromString(start_category, self.timeformat)
             end_date = QDateTime.fromString(end_category, self.timeformat)
-            self.date_axis.setMin(start_date)
-            self.date_axis.setMax(end_date)
+            self.start = start_date
+            self.end = end_date
             _range = max(max_offset - min_offset, 1)
             self._series.setBodyWidth(width / _range)
             self.get_y_bounds()
+            self.rangeChanged.emit(start_date, end_date)
             return super().mouseMoveEvent(event)
         if event.buttons() == Qt.MouseButton.RightButton:
             if offset_id > 1:
@@ -365,18 +373,16 @@ class CandleChart(QChartView):
                 max_offset = min(max(self._max_id - offset_id, 0), max_id)
             start_category = self.axis_x.at(min_offset)
             end_category = self.axis_x.at(max_offset)
-            self.axis_x.setMin(start_category)
-            self.axis_x.setMax(end_category)
             start_date = QDateTime.fromString(start_category, self.timeformat)
             end_date = QDateTime.fromString(end_category, self.timeformat)
-            self.date_axis.setMin(start_date)
-            self.date_axis.setMax(end_date)
+            self.start = start_date
+            self.end = end_date
             _range = max(max_offset - min_offset, 1)
             self._series.setBodyWidth(width / _range)
             self.get_y_bounds()
+            self.rangeChanged.emit(start_date, end_date)
             return super().mouseMoveEvent(event)
         return super().mouseMoveEvent(event)
-        # start_category = self.axis_x.
 
 
 class Main(QWidget, Ui_Form):
@@ -394,8 +400,8 @@ class Main(QWidget, Ui_Form):
         self.dateTimeEdit_end.setDateTime(QDateTime.fromSecsSinceEpoch(now))
 
         self.pushButton_add.clicked.connect(self.addChart)
-        self.dateTimeEdit_start.dateTimeChanged.connect(self.updateStart)
-        self.dateTimeEdit_end.dateTimeChanged.connect(self.updateEnd)
+        # self.dateTimeEdit_start.dateTimeChanged.connect(self.updateStart)
+        # self.dateTimeEdit_end.dateTimeChanged.connect(self.updateEnd)
 
     @property
     def symbol(self):
@@ -413,15 +419,12 @@ class Main(QWidget, Ui_Form):
             print("Failed to open database.")
             sys.exit(1)
 
-    def updateStart(self, _start):
+    def updateRange(self, _start, _end):
         for chart in self.charts:
+            if self.sender() == chart:
+                continue
             chart.blockSignals(True)
             chart.start = _start
-            chart.blockSignals(False)
-
-    def updateEnd(self, _end):
-        for chart in self.charts:
-            chart.blockSignals(True)
             chart.end = _end
             chart.blockSignals(False)
 
@@ -434,8 +437,9 @@ class Main(QWidget, Ui_Form):
         chart = CandleChart(self.symbol, self.interval)
         self._layout.addWidget(chart)
         self.charts.append(chart)
-        chart._startChanged.connect(self.dateTimeEdit_start.setDateTime)
-        chart._endChanged.connect(self.dateTimeEdit_end.setDateTime)
+        chart.startChanged.connect(self.dateTimeEdit_start.setDateTime)
+        chart.endChanged.connect(self.dateTimeEdit_end.setDateTime)
+        chart.rangeChanged.connect(self.updateRange)
 
 
 if __name__ == '__main__':
