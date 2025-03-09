@@ -218,33 +218,24 @@ class CandleChart(QChartView):
                 Volume INTEGER
             )
             ''').exec()
-        date = []
-        _open = []
-        high = []
-        low = []
-        close = []
-        vol = []
+        db = QSqlDatabase.database()
+        db.transaction()
         for kline in list_obj:
-            date.append(kline.date.isoformat())
-            _open.append(kline.open)
-            high.append(kline.high)
-            low.append(kline.low)
-            close.append(kline.close)
-            vol.append(kline.vol)
-            # print(kline.asTuple())
-            # date = pd.to_datetime(kline.id, unit='s')
-            # print(date)
-            # print('=============')
-        q = QSqlQuery(f'INSERT INTO {table_name} (Date, Open, High, Low, Close, Volume) '
-                      f'VALUES ({("?, " * 6)[:-2]}) '
-                      f'ON CONFLICT(Date) DO NOTHING;')
-        q.bindValue(0, date)
-        q.bindValue(1, _open)
-        q.bindValue(2, high)
-        q.bindValue(3, low)
-        q.bindValue(4, close)
-        q.bindValue(5, vol)
-        q.execBatch()
+            q = QSqlQuery()
+            q.prepare(f'INSERT INTO {table_name} (Date, Open, High, Low, Close, Volume) '
+                          f'VALUES (:date, :open, :high, :low, :close, :vol) '
+                          f'ON CONFLICT(Date) DO NOTHING;')
+            q.bindValue(':date', kline.date.isoformat())
+            q.bindValue(':open', kline.open)
+            q.bindValue(':high', kline.high)
+            q.bindValue(':low', kline.low)
+            q.bindValue(':close', kline.close)
+            q.bindValue(':vol', kline.vol)
+            if not q.exec():
+                error = q.lastError().text()
+                db.rollback()
+                raise Exception(error)
+        db.commit()
 
     def init_db(self):
         query = QSqlQuery(f"SELECT max(Date) as Date FROM {self.table_name}")
