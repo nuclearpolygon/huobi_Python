@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1382</width>
-    <height>640</height>
+    <width>1390</width>
+    <height>530</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,148 +15,168 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QComboBox" name="comboBox_symbol">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <item>
-        <property name="text">
-         <string>btcusdt</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>ethusdt</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>xrpusdt</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="comboBox_interval">
-       <item>
-        <property name="text">
-         <string>1min</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>5min</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>15min</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>30min</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>60min</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>4hour</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>1day</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>1week</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>1mon</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="pushButton_add">
-       <property name="text">
-        <string>Add</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QWidget" name="chart_container" native="true">
+    <widget class="QWidget" name="widget_2" native="true">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="autoFillBackground">
-      <bool>false</bool>
-     </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
       <item>
-       <widget class="QWidget" name="widget" native="true">
+       <widget class="QComboBox" name="comboBox_symbol">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="leftMargin">
-          <number>0</number>
+        <item>
+         <property name="text">
+          <string>btcusdt</string>
          </property>
-         <property name="topMargin">
-          <number>0</number>
+        </item>
+        <item>
+         <property name="text">
+          <string>ethusdt</string>
          </property>
-         <property name="rightMargin">
-          <number>0</number>
+        </item>
+        <item>
+         <property name="text">
+          <string>xrpusdt</string>
          </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QDateTimeEdit" name="dateTimeEdit_start"/>
-         </item>
-         <item>
-          <widget class="QDateTimeEdit" name="dateTimeEdit_end"/>
-         </item>
-        </layout>
+        </item>
        </widget>
       </item>
+      <item>
+       <widget class="QComboBox" name="comboBox_interval">
+        <item>
+         <property name="text">
+          <string>1min</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>5min</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>15min</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>30min</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>60min</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>4hour</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>1day</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>1week</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>1mon</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButton_add">
+        <property name="text">
+         <string>Add</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QDateTimeEdit" name="dateTimeEdit_start"/>
+      </item>
+      <item>
+       <widget class="QDateTimeEdit" name="dateTimeEdit_end"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="chart_container" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
      </layout>
     </widget>
    </item>

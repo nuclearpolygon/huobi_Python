@@ -3,10 +3,10 @@ from pprint import pformat
 from huobi.client.market import MarketClient, Candlestick
 from huobi.constant import *
 
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy, QVBoxLayout
 from PySide6.QtCharts import (QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart,
                               QChartView, QDateTimeAxis)
-from PySide6.QtCore import QDateTime, Qt, Signal, QPoint
+from PySide6.QtCore import QDateTime, Qt, Signal, QPoint, QSize
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
 from PySide6.QtGui import QColor, QFont, QIcon
 
@@ -100,7 +100,12 @@ class CandleChart(QChartView):
         self.date_axis = None
 
         self.init_db()
+        # self.setup_view()
+        self.setup_scene()
+        self.setup_chart()
+        self.get_y_bounds()
 
+    def setup_view(self):
         self.viewport().setContentsMargins(0, 0, 0, 0)
         self.setContentsMargins(0, 0, 0, 0)
         self.setRubberBandSelectionMode(Qt.ItemSelectionMode.ContainsItemShape)
@@ -108,16 +113,6 @@ class CandleChart(QChartView):
         # self.setDragMode(self.DragMode.ScrollHandDrag)
         self.setMouseTracking(True)
         self.setOptimizationFlag(self.OptimizationFlag.DontAdjustForAntialiasing)
-
-        # size_policy = QSizePolicy()
-        # size_policy.setVerticalStretch(1)
-        # size_policy.setHorizontalPolicy(QSizePolicy.Policy.Preferred)
-        # size_policy.setVerticalPolicy(QSizePolicy.Policy.MinimumExpanding)
-        # self.setSizePolicy(size_policy)
-
-        self.setup_scene()
-        self.setup_chart()
-        self.get_y_bounds()
 
     def setup_scene(self):
         widget_info = CornerWidget()
@@ -400,8 +395,6 @@ class Main(QWidget, Ui_Form):
         self.dateTimeEdit_end.setDateTime(QDateTime.fromSecsSinceEpoch(now))
 
         self.pushButton_add.clicked.connect(self.addChart)
-        # self.dateTimeEdit_start.dateTimeChanged.connect(self.updateStart)
-        # self.dateTimeEdit_end.dateTimeChanged.connect(self.updateEnd)
 
     @property
     def symbol(self):
@@ -435,7 +428,7 @@ class Main(QWidget, Ui_Form):
 
     def addChart(self):
         chart = CandleChart(self.symbol, self.interval)
-        self._layout.addWidget(chart)
+        self._layout.addWidget(chart, stretch=1)
         self.charts.append(chart)
         chart.startChanged.connect(self.dateTimeEdit_start.setDateTime)
         chart.endChanged.connect(self.dateTimeEdit_end.setDateTime)

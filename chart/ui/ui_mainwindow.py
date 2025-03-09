@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'mainwindowzjwLqF.ui'
+## Form generated from reading UI file 'mainwindowLtpIzs.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -23,25 +23,33 @@ class Ui_Form(object):
     def setupUi(self, Form):
         if not Form.objectName():
             Form.setObjectName(u"Form")
-        Form.resize(1382, 640)
+        Form.resize(1390, 530)
         self.verticalLayout = QVBoxLayout(Form)
         self.verticalLayout.setObjectName(u"verticalLayout")
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.comboBox_symbol = QComboBox(Form)
+        self.widget_2 = QWidget(Form)
+        self.widget_2.setObjectName(u"widget_2")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.widget_2.sizePolicy().hasHeightForWidth())
+        self.widget_2.setSizePolicy(sizePolicy)
+        self.horizontalLayout_3 = QHBoxLayout(self.widget_2)
+        self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
+        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
+        self.comboBox_symbol = QComboBox(self.widget_2)
         self.comboBox_symbol.addItem("")
         self.comboBox_symbol.addItem("")
         self.comboBox_symbol.addItem("")
         self.comboBox_symbol.setObjectName(u"comboBox_symbol")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.comboBox_symbol.sizePolicy().hasHeightForWidth())
-        self.comboBox_symbol.setSizePolicy(sizePolicy)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.comboBox_symbol.sizePolicy().hasHeightForWidth())
+        self.comboBox_symbol.setSizePolicy(sizePolicy1)
 
-        self.horizontalLayout.addWidget(self.comboBox_symbol)
+        self.horizontalLayout_3.addWidget(self.comboBox_symbol)
 
-        self.comboBox_interval = QComboBox(Form)
+        self.comboBox_interval = QComboBox(self.widget_2)
         self.comboBox_interval.addItem("")
         self.comboBox_interval.addItem("")
         self.comboBox_interval.addItem("")
@@ -53,34 +61,20 @@ class Ui_Form(object):
         self.comboBox_interval.addItem("")
         self.comboBox_interval.setObjectName(u"comboBox_interval")
 
-        self.horizontalLayout.addWidget(self.comboBox_interval)
+        self.horizontalLayout_3.addWidget(self.comboBox_interval)
 
-        self.pushButton_add = QPushButton(Form)
+        self.pushButton_add = QPushButton(self.widget_2)
         self.pushButton_add.setObjectName(u"pushButton_add")
 
-        self.horizontalLayout.addWidget(self.pushButton_add)
+        self.horizontalLayout_3.addWidget(self.pushButton_add)
 
 
-        self.verticalLayout.addLayout(self.horizontalLayout)
+        self.verticalLayout.addWidget(self.widget_2)
 
-        self.chart_container = QWidget(Form)
-        self.chart_container.setObjectName(u"chart_container")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.MinimumExpanding)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.chart_container.sizePolicy().hasHeightForWidth())
-        self.chart_container.setSizePolicy(sizePolicy1)
-        self.chart_container.setAutoFillBackground(False)
-        self.chart_container.setStyleSheet(u"")
-        self.verticalLayout_3 = QVBoxLayout(self.chart_container)
-        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.widget = QWidget(self.chart_container)
+        self.widget = QWidget(Form)
         self.widget.setObjectName(u"widget")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.widget.sizePolicy().hasHeightForWidth())
-        self.widget.setSizePolicy(sizePolicy2)
+        sizePolicy.setHeightForWidth(self.widget.sizePolicy().hasHeightForWidth())
+        self.widget.setSizePolicy(sizePolicy)
         self.horizontalLayout_2 = QHBoxLayout(self.widget)
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
@@ -99,8 +93,13 @@ class Ui_Form(object):
         self.horizontalLayout_2.addWidget(self.dateTimeEdit_end)
 
 
-        self.verticalLayout_3.addWidget(self.widget)
+        self.verticalLayout.addWidget(self.widget)
 
+        self.chart_container = QWidget(Form)
+        self.chart_container.setObjectName(u"chart_container")
+        self.verticalLayout_3 = QVBoxLayout(self.chart_container)
+        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
 
         self.verticalLayout.addWidget(self.chart_container)
 
