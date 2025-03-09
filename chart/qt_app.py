@@ -100,7 +100,7 @@ class CandleChart(QChartView):
         self.date_axis = None
 
         self.init_db()
-        # self.setup_view()
+        self.setup_view()
         self.setup_scene()
         self.setup_chart()
         self.get_y_bounds()
