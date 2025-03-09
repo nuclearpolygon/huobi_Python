@@ -68,9 +68,10 @@ class CornerWidget(QWidget, Ui_cornerWidget):
         self.label_close.setText(f'{_set.close()}')
         change = -(_set.open() - _set.close()) / _set.open() * 100
         if change < 0:
-            color = QColor.fromString('red')
+            color = 'red'
         else:
-            color = QColor.fromString('green')
+            color = 'green'
+        self.label_change.setStyleSheet(f'color: {color}')
         self.label_change.setText(f'{change:.2f}%')
 
 
@@ -247,9 +248,9 @@ class CandleChart(QChartView):
 
     def init_db(self):
         query = QSqlQuery(f"SELECT max(Date) as Date FROM {self.table_name}")
-        query.next()
-        date = query.value('Date')
-        if date:
+        exist = query.next()
+        if exist:
+            date = query.value('Date')
             last_date = datetime.fromtimestamp(QDateTime.fromString(date, self.db_timeformat).toSecsSinceEpoch())
             now = datetime.now()
             now = round_time(now, self.timedelta)
@@ -305,22 +306,26 @@ class CandleChart(QChartView):
         # self._endChanged.emit(value)
 
     def get_y_bounds(self):
-        q = QSqlQuery(
-            f"SELECT max(High) FROM {self.table_name} "
+        q = QSqlQuery()
+        q.prepare(
+            f"SELECT max(High) AS High FROM {self.table_name} "
             "WHERE Date BETWEEN :r0 AND :r1"
         )
-        q.bindValue('r0:', self.start)
-        q.bindValue('r1:', self.end)
+        q.bindValue(':r0', self.start)
+        q.bindValue(':r1', self.end)
+        q.exec()
         q.first()
-        _max = q.value('Date')
-        q = QSqlQuery(
-            f"SELECT min(Low) FROM {self.table_name} "
+        _max = q.value('High')
+        q = QSqlQuery()
+        q.prepare(
+            f"SELECT min(Low) AS Low FROM {self.table_name} "
             "WHERE Date BETWEEN :r0 AND :r1"
         )
-        q.bindValue('r0:', self.start)
-        q.bindValue('r1:', self.end)
+        q.bindValue(':r0', self.start)
+        q.bindValue(':r1', self.end)
+        q.exec()
         q.first()
-        _min = q.value('Date')
+        _min = q.value('Low')
         if _min and _max:
             self.axis_y.setRange(_min, _max)
 
