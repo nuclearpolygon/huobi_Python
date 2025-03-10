@@ -42,6 +42,8 @@ market_client = MarketClient(init_log=False)
 
 
 def round_time(now: datetime, _timedelta: timedelta) -> datetime:
+    if _timedelta >= timedelta(days=1):
+        return now
     return datetime.fromtimestamp(now.timestamp() - (now.timestamp() % _timedelta.total_seconds()))
 
 
@@ -51,8 +53,12 @@ def qround_time(time: QDateTime, _timedelta: timedelta) -> QDateTime:
 
 
 def time_range(start: datetime, end: datetime, _timedelta: timedelta):
+    if _timedelta == timedelta(days=30):
+        return start
     while start + _timedelta != end - _timedelta:
         start += _timedelta
+        if start >= datetime.max - _timedelta:
+            return start
         yield start
 
 
