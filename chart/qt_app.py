@@ -3,12 +3,12 @@ from pprint import pformat
 from huobi.client.market import MarketClient, Candlestick
 from huobi.constant import *
 
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QSizePolicy, QGraphicsLineItem, QLabel, QGraphicsProxyWidget
 from PySide6.QtCharts import (QCandlestickSeries, QCandlestickSet, QCandlestickModelMapper, QChart,
-                              QChartView, QDateTimeAxis)
-from PySide6.QtCore import QDateTime, Qt, Signal, QPoint, QSize
+                              QChartView, QDateTimeAxis, QLineSeries, QValueAxis)
+from PySide6.QtCore import QDateTime, Qt, Signal, QPoint, QSize, QLineF, QPointF, QEvent
 from PySide6.QtSql import QSqlDatabase, QSqlQueryModel, QSqlQuery
-from PySide6.QtGui import QColor, QFont, QIcon
+from PySide6.QtGui import QColor, QFont, QIcon, QPen
 
 from ui.ui_mainwindow import Ui_Form
 from ui.ui_corner_widget import Ui_cornerWidget
@@ -62,6 +62,10 @@ def time_range(start: datetime, end: datetime, _timedelta: timedelta):
         yield start
 
 
+def remap(value, low1, high1, low2=0.0, high2=1.0):
+    return low2 + (value - low1) * (high2 - low2) / max(high1 - low1, 1)
+
+
 class CornerWidget(QWidget, Ui_cornerWidget):
     def __init__(self, ):
         super().__init__()
@@ -97,19 +101,27 @@ class CandleChart(QChartView):
         self._pressed_pos = QPoint()
         self._min_id = 0
         self._max_id = -1
+        self.min_y = 0
+        self.max_y = 0
         self.timedelta = DatetimeIntervals[interval]
+
         self.item_button = None
         self._series = QCandlestickSeries()
         self._chart = QChart()
         self.axis_x = None
         self.axis_y = None
         self.date_axis = None
+        self.line_current_price = QLineSeries()
+        self.label_current_price = QGraphicsProxyWidget()
+
+        # self.chart().installEventFilter(self)
 
         self.init_db()
         self.setup_view()
-        self.setup_scene()
         self.setup_chart()
         self.get_y_bounds()
+        self.setup_scene()
+        self.set_current_price_line()
 
     def setup_view(self):
         self.viewport().setContentsMargins(0, 0, 0, 0)
@@ -138,6 +150,9 @@ class CandleChart(QChartView):
         pushButton_close.clicked.connect(self._close)
         pushButton_close.setStyleSheet('background-color: transparent')
         self.item_button = self.scene().addWidget(pushButton_close)
+
+        label = QLabel('price')
+        self.label_current_price = self.scene().addWidget(label)
 
         # connect signals
         self._series.hovered.connect(widget_info.setValuse)
@@ -184,6 +199,12 @@ class CandleChart(QChartView):
         # Add the series to the chart
         self._chart.addSeries(self._series)
 
+        pen = QPen(Qt.GlobalColor.red)
+        pen.setWidth(1)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        self.line_current_price.setPen(pen)
+        self.chart().addSeries(self.line_current_price)
+
         # Create axes
         self._chart.createDefaultAxes()
         self.axis_x = self._chart.axes(Qt.Orientation.Horizontal)[0]
@@ -199,6 +220,14 @@ class CandleChart(QChartView):
         self.date_axis.setRange(start, end)
         self.axis_x.setRange(categories[start_id], categories[end_id])
         self._chart.addAxis(self.date_axis, Qt.AlignmentFlag.AlignBottom)
+
+        value_axis = QValueAxis()
+        value_axis.setMin(0)
+        value_axis.setMax(1)
+        value_axis.setVisible(False)
+        value_axis.setLabelsVisible(False)
+        self._chart.addAxis(value_axis, Qt.AlignmentFlag.AlignBottom)
+        # self.line_current_price.attachAxis(value_axis)
 
         # Format the y-axis
         self.axis_y = self._chart.axes(Qt.Orientation.Vertical)[0]
@@ -304,6 +333,7 @@ class CandleChart(QChartView):
         self.axis_x.setMax(value.toString(self.timeformat))
         self.date_axis.setMax(value)
         self.get_y_bounds()
+        self.set_current_price_line()
         self.endChanged.emit(value)
 
     def get_y_bounds(self):
@@ -329,6 +359,25 @@ class CandleChart(QChartView):
         _min = q.value('Low')
         if _min and _max:
             self.axis_y.setRange(_min, _max)
+            self.min_y = _min
+            self.max_y = _max
+
+    def set_current_price_line(self):
+        index = self.axis_x.categories().index(self.axis_x.max())
+        _set = self._series.sets()[index]
+        level = _set.close()
+        pos_y = remap(level, self.min_y, self.max_y,
+                      self._chart.plotArea().bottom(),
+                      self._chart.plotArea().top()
+                      )
+        self.label_current_price.setPos(
+            self._chart.plotArea().right(),
+            pos_y
+        )
+        self.label_current_price.widget().setText(f'{level}')
+        self.line_current_price.clear()
+        self.line_current_price.append(0, level)
+        self.line_current_price.append(1, level)
 
     def _close(self):
         self.close()
@@ -337,6 +386,7 @@ class CandleChart(QChartView):
         button_width = self.item_button.size().width()
         button_height = self.item_button.size().height()
         self.item_button.setPos(event.size().width() - button_width - 10, button_height / 2)
+        self.set_current_price_line()
         return super().resizeEvent(event)
 
     def mousePressEvent(self, event):
