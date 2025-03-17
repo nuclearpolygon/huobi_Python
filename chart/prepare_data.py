@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -9,11 +10,28 @@ from huobi.exception.huobi_api_exception import HuobiApiException
 from huobi.model.market import CandlestickEvent
 from huobi.model.market import CandlestickReq
 
+market_client = MarketClient()
+candles = market_client.get_candlestick('btcusdt', CandlestickInterval.MIN1, 20)
+data = np.array([c.close for c in candles])
+x_axis = np.arange(len(data))
+deriv = np.gradient(data, 1)
+up = np.ma.masked_where(deriv <= 0, data)
+down = np.ma.masked_where(deriv >= 0, data)
 
 def callback(candlestick_req: CandlestickEvent):
     print(candlestick_req.tick.print_object())
     # np.append(y_data, candlestick_req.tick.close)
-    # np.append(x_data, candlestick_req.tick.id)
+    np.append(data, candlestick_req.tick.close)
+    _x_axis = np.arange(len(data))
+    _deriv = np.gradient(data, 1)
+    _up = np.ma.masked_where(_deriv <= 0, data)
+    _down = np.ma.masked_where(_deriv >= 0, data)
+    # plt.plot(x_axis, up, c='green', linestyle='-', label='Data')
+    # plt.plot(x_axis, down, c='red', linestyle='-', label='Data')
+    ax.clear()
+    ax.plot(_x_axis, _up, c='green', linestyle='-', label='Data')
+    ax.plot(_x_axis, _down, c='red', linestyle='-', label='Data')
+    fig.canvas.draw_idle()
     # # plt.ion()
     #
     # # Update the plot data
@@ -25,29 +43,20 @@ def callback(candlestick_req: CandlestickEvent):
     # graph.autoscale_view()
 
     # Redraw the plot
-    # plt.draw()
+    plt.draw()
     # plt.ioff()
+
 
 
 def error(e: 'HuobiApiException'):
     print(e.error_code + e.error_message)
 
-start = datetime(2020, 1, 1)
-interval = timedelta(minutes=1)
-end = datetime(2026, 1, 1)
-market_client = MarketClient()
-candles = market_client.get_candlestick('btcusdt', CandlestickInterval.MIN1, 2000)
-# market_client.sub_candlestick("btcusdt", CandlestickInterval.MIN1, callback, error)
-data = np.array([c.close for c in candles])
-deriv = np.gradient(data, 1)
-print(data)
-print(deriv)
-colors = []
-up = np.ma.masked_where(deriv < 0, data)
-down = np.ma.masked_where(deriv >= 0, data)
-x_axis = np.arange(len(data))
-plt.plot(x_axis, up, c='green', linestyle='-', label='Data')
-plt.plot(x_axis, down, c='red', linestyle='-', label='Data')
+market_client.sub_candlestick("btcusdt", CandlestickInterval.MIN1, callback, error)
+
+fig = plt.figure()
+ax = fig.add_subplot()
+line_up, = ax.plot(x_axis, up, c='green', linestyle='-', label='Data')
+line_down, = ax.plot(x_axis, down, c='red', linestyle='-', label='Data')
 
 plt.xlabel('X-axis')
 plt.ylabel('Y-axis')
