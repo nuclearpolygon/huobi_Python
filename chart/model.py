@@ -77,6 +77,7 @@ seq_length = 200  # Length of input sequence
 pred_length = 30  # Length of predicted sequence
 data, x_axis, plot_data = generate_synthetic_data()
 _norm_data, _min, _max = min_max_normalize(data)
+_norm_data = _norm_data[:-pred_length]
 dataset = CryptoPriceDataset(_norm_data, seq_length, pred_length)
 train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
@@ -125,7 +126,7 @@ torch.save(model.state_dict(), model_save_path)
 print(f"Model saved to {model_save_path}")
 # Step 4: Evaluate the Model
 model.eval()
-test_input = torch.tensor(_norm_data[-seq_length:-pred_length], dtype=torch.float32).unsqueeze(0).to(device)
+test_input = torch.tensor(_norm_data[-seq_length:], dtype=torch.float32).unsqueeze(0).to(device)
 with torch.no_grad():
     predicted_prices = model(test_input).squeeze().cpu().numpy()
 predicted_prices = min_max_denormalize(predicted_prices, _min, _max)
