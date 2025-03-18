@@ -10,11 +10,13 @@ from huobi.client.market import MarketClient, Candlestick
 from huobi.constant import *
 
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 # Check if CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+model_save_path = "crypto_lstm_model.pth"
 # Step 1: Prepare the Dataset
 class CryptoPriceDataset(Dataset):
     def __init__(self, prices, _seq_length, _pred_length):
@@ -97,7 +99,9 @@ class CryptoLSTM(nn.Module):
         return out
 
 model = CryptoLSTM(_pred_length=pred_length).to(device)
-
+if Path(model_save_path).exists():
+    model.load_state_dict(torch.load(model_save_path))
+    model.to(device)
 # Step 3: Train the Model
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -116,7 +120,9 @@ for epoch in range(num_epochs):
         optimizer.step()
         running_loss += loss.item()
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}")
-
+# Save the model
+torch.save(model.state_dict(), model_save_path)
+print(f"Model saved to {model_save_path}")
 # Step 4: Evaluate the Model
 model.eval()
 test_input = torch.tensor(_norm_data[-seq_length:-pred_length], dtype=torch.float32).unsqueeze(0).to(device)
