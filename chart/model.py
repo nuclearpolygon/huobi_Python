@@ -73,7 +73,7 @@ def generate_synthetic_data():
     return _data, _x_axis, _plot_data
 
 # Parameters
-seq_length = 200  # Length of input sequence
+seq_length = 500  # Length of input sequence
 pred_length = 30  # Length of predicted sequence
 data, x_axis, plot_data = generate_synthetic_data()
 _norm_data, _min, _max = min_max_normalize(data)
@@ -83,18 +83,20 @@ train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Step 2: Build the LSTM Model
 class CryptoLSTM(nn.Module):
-    def __init__(self, input_size=5, hidden_size=50, output_size=1, num_layers=10, _pred_length=20):
+    def __init__(self, input_size=5, hidden_size=50, output_size=1, num_layers=10, _pred_length=20, dropout_rate=0.2):
         super(CryptoLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.pred_length = _pred_length
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout_rate)
+        self.dropout = nn.Dropout(dropout_rate)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
         out, _ = self.lstm(x, (h0, c0))
+        out = self.dropout(out)
         out = self.fc(out[:, -self.pred_length:, :])  # Predict the next `pred_length` steps
         out[:, 0, :] = x[:, -1, 3:4]
         return out
