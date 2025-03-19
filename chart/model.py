@@ -111,6 +111,7 @@ class CryptoLSTM(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout_rate)
         self.dropout = nn.Dropout(dropout_rate)
         self.attention = Attention(hidden_size)  # Add attention layer
+        self.layer_norm = nn.LayerNorm(hidden_size)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
@@ -118,6 +119,7 @@ class CryptoLSTM(nn.Module):
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
         out, _ = self.lstm(x, (h0, c0))
         out = self.dropout(out)
+        out = self.layer_norm(out)  # Apply layer normalization
         context_vector, attention_weights = self.attention(out)
         out = self.fc(context_vector.unsqueeze(1).repeat(1, self.pred_length, 1))  # Repeat context vector for pred_length steps
         out[:, 0, :] = x[:, -1, 3:4]
@@ -141,6 +143,7 @@ if Path(model_save_path).exists():
 # Step 3: Train the Model
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
 num_epochs = 20
 for epoch in range(num_epochs):
@@ -155,6 +158,7 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         running_loss += loss.item()
+    scheduler.step()
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}")
 # Save the model
 torch.save(model.state_dict(), model_save_path)
