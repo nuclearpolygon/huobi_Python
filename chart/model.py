@@ -19,7 +19,17 @@ print(f"Using device: {device}")
 
 model_save_path = "crypto_lstm_model.pth"
 market_client = MarketClient()
-
+Intervals = (
+    CandlestickInterval.MIN1,
+    CandlestickInterval.MIN5,
+    CandlestickInterval.MIN15,
+    CandlestickInterval.MIN30,
+    CandlestickInterval.MIN60,
+    CandlestickInterval.HOUR4,
+    CandlestickInterval.DAY1,
+    CandlestickInterval.WEEK1,
+    CandlestickInterval.MON1
+)
 
 # Step 1: Prepare the Dataset
 class CryptoPriceDataset(Dataset):
@@ -32,8 +42,6 @@ class CryptoPriceDataset(Dataset):
         return len(self.prices) - self.seq_length - self.pred_length
 
     def __getitem__(self, idx):
-        # end = (idx + self.seq_length) % len(self.prices)
-        # idx = idx % len(self.prices)
         input_seq = self.prices[idx:idx + self.seq_length]
         output_seq = self.prices[idx + self.seq_length:idx + self.seq_length + self.pred_length, 3]
         return torch.tensor(input_seq, dtype=torch.float32), torch.tensor(output_seq, dtype=torch.float32)
@@ -63,8 +71,8 @@ def min_max_denormalize(normalized_data, data_min, data_max):
     return normalized_data * (data_max - data_min) + data_min
 
 
-def generate_synthetic_data():
-    candles = market_client.get_candlestick('btcusdt', CandlestickInterval.MIN1, 2000)
+def generate_synthetic_data(symbol='btcusdt', interval=CandlestickInterval.MIN1):
+    candles = market_client.get_candlestick(symbol, interval, 2000)
     _data = []
     _x_axis = []
     _plot_data = []
@@ -95,7 +103,7 @@ class Attention(nn.Module):
 
 # Step 2: Build the LSTM Model
 class CryptoLSTM(nn.Module):
-    def __init__(self, input_size=5, hidden_size=50, output_size=1, num_layers=10, _pred_length=20, dropout_rate=0.2):
+    def __init__(self, input_size=5, hidden_size=100, output_size=1, num_layers=10, _pred_length=20, dropout_rate=0.1):
         super(CryptoLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.pred_length = _pred_length
@@ -117,9 +125,9 @@ class CryptoLSTM(nn.Module):
 
 
 # Parameters
-seq_length = 200  # Length of input sequence
+seq_length = 500  # Length of input sequence
 pred_length = 30  # Length of predicted sequence
-data, x_axis, plot_data = generate_synthetic_data()
+data, x_axis, plot_data = generate_synthetic_data(interval=CandlestickInterval.MIN60)
 _norm_data, _min, _max = min_max_normalize(data)
 _norm_data = _norm_data[:-pred_length]
 dataset = CryptoPriceDataset(_norm_data, seq_length, pred_length)
@@ -161,6 +169,8 @@ with torch.no_grad():
 # Ensure shapes are correct
 print("Predicted Prices Shape:", predicted_prices.shape)  # Should be (pred_length,)
 print("Attention Weights Shape:", attention_weights.shape)  # Should be (seq_length, pred_length)
+
+# Denormalize the predicted prices
 predicted_prices = min_max_denormalize(predicted_prices, _min, _max)
 # Visualize the results
 plt.figure(figsize=(12, 8))
@@ -169,11 +179,15 @@ plt.plot(x_axis, plot_data, label="Historical Prices")
 plt.plot(x_axis[-pred_length:], predicted_prices, label="Predicted Prices", linestyle="--")
 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%Y %H:%M'))
 plt.gcf().autofmt_xdate()
-# plt.axvline(x=x_axis[-pred_length], color="r", linestyle="--", label="Prediction Start")
+plt.axvline(x=x_axis[-pred_length], color="r", linestyle="--", label="Prediction Start")
+plt.axvline(x=x_axis[-pred_length-seq_length], color="r", linestyle="--", label="Prediction Start")
 plt.legend()
+
 # Plot attention weights
 plt.subplot(2, 1, 2)
-sns.heatmap(attention_weights.T, cmap="viridis", annot=True, fmt=".2f", cbar=True)
+plt.plot(x_axis[-seq_length-pred_length:-pred_length], attention_weights, label="Predicted Prices", linestyle="--")
+# # map_data = np.asarray()
+# # sns.heatmap(attention_weights.T.reshape(1, seq_length), cmap="viridis", annot=True, fmt=".2f", cbar=True)
 plt.xlabel("Time Steps")
 plt.ylabel("Attention Weights")
 plt.title("Attention Weights Visualization")
