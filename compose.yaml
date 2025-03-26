@@ -1,0 +1,6 @@
+services:
+  yf_keras:
+    image: yf_keras
+    container_name: yf_keras
+    volumes:
+      - ./chart:/app/chart

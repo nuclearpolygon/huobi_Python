@@ -5,5 +5,6 @@ from huobi.utils import *
 generic_client = GenericClient(api_key=g_api_key,
                                secret_key=g_secret_key)
 
-list_obj = generic_client.get_common_symbols()
-LogInfo.output_list(list_obj)
+symbols = [s.sc for s in generic_client.get_common_symbols() if s.state == 'online']
+print(symbols)
+print(symbols.__len__())
