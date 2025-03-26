@@ -71,7 +71,7 @@ training_data_len = int(np.ceil( len(dataset) * .95 ))
 scaler = MinMaxScaler(feature_range=(0,1))
 scaled_data = scaler.fit_transform(dataset)
 
-train_data = scaled_data[0:int(training_data_len), :]
+train_data = scaled_data[0:int(training_data_len)-60, :]
 # Split the data into x_train and y_train data sets
 x_train = []
 y_train = []
@@ -131,6 +131,8 @@ rmse = np.sqrt(np.mean(((predictions - y_test) ** 2)))
 train = data[:training_data_len]
 valid = data[training_data_len:]
 valid['Predictions'] = predictions
+train.to_pickle('/app/chart/data/train')
+valid.to_pickle('/app/chart/data/valid')
 # Visualize the data
 plt.figure(figsize=(16,6))
 plt.title('Model')

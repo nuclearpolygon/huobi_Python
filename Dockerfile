@@ -8,6 +8,8 @@ RUN apt-get install -y python3-tk
 #COPY chart ./chart
 ENV PYTHONPATH=/app
 ENV DISPLAY=172.17.0.1:0
+ENV UID=${UID}
+ENV GID=${GID}
 
 ENTRYPOINT ["python", "/app/chart/yf_keras.py"]
 #ENTRYPOINT ["bash"]
