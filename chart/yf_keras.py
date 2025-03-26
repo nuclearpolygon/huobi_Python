@@ -9,8 +9,8 @@ import yfinance as yf
 from datetime import datetime
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
+from keras.api.models import Sequential
+from keras.api.layers import Dense, LSTM, Input
 
 tech_list = ['BTC-USD', 'XRP-USD']
 
@@ -53,7 +53,7 @@ for i, symbol in enumerate(company_list, 1):
     ax2 = ax1.twinx()
     ax2.plot(symbol.index, symbol['Volume'], linewidth=2, label='Volume', color='red')
     ax2.grid(False)
-    ax2.set_ylim(0, float(symbol['Volume'].max()) * 3)
+    ax2.set_ylim(0, float(symbol['Volume'].max().iloc[0]) * 3)
     ax3 = ax1.twinx()
     ax3.plot(symbol.index, symbol['Return'], linewidth=1, label='Return', linestyle='--')
     ax3.grid(False)
@@ -63,12 +63,11 @@ for i, symbol in enumerate(company_list, 1):
 plt.tight_layout()
 
 sns.jointplot(x='BTC-USD', y='XRP-USD', data=df['Close'])
-# plt.show()
+plt.savefig('/app/chart/image/figure1.png')
 
-data = BTCUSD.filter(['Close'])
+data = BTCUSD['Close']
 dataset = data.values
 training_data_len = int(np.ceil( len(dataset) * .95 ))
-
 scaler = MinMaxScaler(feature_range=(0,1))
 scaled_data = scaler.fit_transform(dataset)
 
@@ -94,7 +93,8 @@ x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 
 # Build the LSTM model
 model = Sequential()
-model.add(LSTM(128, return_sequences=True, input_shape= (x_train.shape[1], 1)))
+model.add(Input((x_train.shape[1], 1)))
+model.add(LSTM(128, return_sequences=True))
 model.add(LSTM(64, return_sequences=False))
 model.add(Dense(25))
 model.add(Dense(1))
@@ -136,7 +136,7 @@ plt.figure(figsize=(16,6))
 plt.title('Model')
 plt.xlabel('Date', fontsize=18)
 plt.ylabel('Close Price USD ($)', fontsize=18)
-plt.plot(train['Close'])
-plt.plot(valid[['Close', 'Predictions']])
+plt.plot(train['BTC-USD'], lw=1)
+plt.plot(valid[['BTC-USD', 'Predictions']], lw=1)
 plt.legend(['Train', 'Val', 'Predictions'], loc='lower right')
-plt.show()
+plt.savefig('/app/chart/image/figure2.png')
