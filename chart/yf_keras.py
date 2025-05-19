@@ -6,6 +6,8 @@ import seaborn as sns
 sns.set_style('whitegrid')
 plt.style.use("fivethirtyeight")
 import yfinance as yf
+from ta.momentum import RSIIndicator
+from ta.trend import MACD, SMAIndicator
 
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +38,7 @@ def get_checkpoint_path(_next=False, stem='checkpoint') -> Path:
 
 # Build model
 model = Sequential([
-    Input(shape=(WINDOW_SIZE, 5)),
+    Input(shape=(WINDOW_SIZE, 9)),
     Bidirectional(LSTM(128, return_sequences=True)),
     Dropout(0.2),
     LayerNormalization(),
@@ -76,19 +78,25 @@ for symbol, name in zip(tech_list, company_name):
                                  monitor='loss',
                                  verbose=1)
     # Use only BTC-USD for now
-    data = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
+    data = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna(inplace=True)
+    data['LogReturn'] = np.log(data['Close'] / data['Close'].shift(1))
+    data['RSI'] = RSIIndicator(close=data['Close']).rsi()
+    data['MACD'] = MACD(close=data['Close']).macd()
+    data['MA'] = SMAIndicator(close=data['Close'], window=14).sma_indicator()
+    data.dropna(inplace=True)
     # Normalize
     scaled_data = scaler.fit_transform(data)
+    print(scaled_data)
     # Split into training and testing
     train_data = scaled_data[:-PREDICT_AHEAD]
-    x_train = []
-    y_train = []
+    train_input = []
+    train_output = []
     for i in range(WINDOW_SIZE, len(train_data) - PREDICT_AHEAD + 1):
-        x_train.append(train_data[i - WINDOW_SIZE:i])
-        y_train.append(train_data[i:i + PREDICT_AHEAD, 3])  # index 3 = 'Close'
-    x_train = np.array(x_train)
-    y_train = np.array(y_train)
-    history = model.fit(x_train, y_train, epochs=5, batch_size=32, callbacks=[checkpoint])
+        train_input.append(train_data[i - WINDOW_SIZE:i])
+        train_output.append(train_data[i + 1:i + PREDICT_AHEAD + 1, 'Close'])
+    train_input = np.array(train_input)
+    train_output = np.array(train_output)
+    history = model.fit(train_input, train_output, epochs=5, batch_size=32, callbacks=[checkpoint])
     pd.DataFrame(history.history).to_csv('training_history.csv', mode='a')
 # Prepare test data
 x_test = []

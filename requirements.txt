@@ -16,3 +16,6 @@ setuptools~=68.2.0
 torch
 tensorflow==2.19.0
 keras==3.9.0
+yfinance
+ta
+sklearn
