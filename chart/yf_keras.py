@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import seaborn as sns
 sns.set_style('whitegrid')
 plt.style.use("fivethirtyeight")
@@ -12,133 +13,89 @@ from sklearn.preprocessing import MinMaxScaler
 from keras.api.models import Sequential
 from keras.api.layers import Dense, LSTM, Input
 
+# Configuration
 tech_list = ['BTC-USD', 'XRP-USD']
+company_name = ["Bitcoin", "Ripple"]
+predict_ahead = 25  # Number of candles to predict into the future
+window_size = 60    # Number of past candles used for prediction
 
+# Download or load data
 end = datetime.now()
 start = datetime(end.year - 1, end.month, end.day)
-BTCUSD: pd.DataFrame
-XRPUSD: pd.DataFrame
-company_name = ["Bitcoin", "Ripple"]
 
-for i, stock in enumerate(tech_list):
-    stock_var = stock.replace('-', '')
-    f_name = Path(f'{company_name[i]}.pkl')
-    if not f_name.exists():
-        globals()[stock_var] = yf.download(stock, period='max', interval='1m')
-    else:
-        globals()[stock_var] = pd.read_pickle(f_name.__str__())
+data_frames = []
+for symbol, name in zip(tech_list, company_name):
+    f_name = Path(f'{name}.pkl')
+    try:
+        df = yf.download(symbol, period='max', interval='1m')
+        if len(df) == 0:
+            print(f'Downloaded data is empty for {symbol}')
+            raise Exception
+        df.to_pickle(f_name.__str__())
+        print(f'Data updated for {symbol}')
+    except Exception as e:
+        print(f'reading data for {symbol}')
+        df = pd.read_pickle(f_name.__str__())
+    data_frames.append(df)
 
-company_list = [BTCUSD, XRPUSD]
-for i, company in enumerate(company_list):
-    f_name = Path(f'{company_name[i]}.pkl')
-    if not f_name.exists():
-        company.to_pickle(f_name.__str__())
+# Use only BTC-USD for now
+data = data_frames[0][['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
 
+# Normalize
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(data)
 
-ma_day = [10, 20, 50]
-for ma in ma_day:
-    for i, company in enumerate(company_list):
-        column_name = f"MA{ma}"
-        company[column_name] = company['Close'].rolling(ma).mean()
-        company['Return'] = company['Close'][tech_list[i]].pct_change()
+# Split into training and testing
+train_data = scaled_data[:-predict_ahead]
 
-
-df = pd.concat(company_list, axis=0)
-
-plt.figure(figsize=(15, 10))
-for i, symbol in enumerate(company_list, 1):
-    ax1 = plt.subplot(2, 1, i)
-    plt.title(company_name[i - 1])
-    ax1.plot(symbol.index, symbol['Close'], linewidth=2, label='Price')
-    ax2 = ax1.twinx()
-    ax2.plot(symbol.index, symbol['Volume'], linewidth=2, label='Volume', color='red')
-    ax2.grid(False)
-    ax2.set_ylim(0, float(symbol['Volume'].max().iloc[0]) * 3)
-    ax3 = ax1.twinx()
-    ax3.plot(symbol.index, symbol['Return'], linewidth=1, label='Return', linestyle='--')
-    ax3.grid(False)
-    for ma in ma_day:
-        ax1.plot(symbol.index, symbol[f'MA{ma}'], linewidth=2, label=f'MA {ma}')
-
-plt.tight_layout()
-
-sns.jointplot(x='BTC-USD', y='XRP-USD', data=df['Close'])
-plt.savefig('/app/chart/image/figure1.png')
-
-data = BTCUSD['Close']
-dataset = data.values
-training_data_len = int(np.ceil( len(dataset) * .95 ))
-scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(dataset)
-
-train_data = scaled_data[0:int(training_data_len)-60, :]
-# Split the data into x_train and y_train data sets
 x_train = []
 y_train = []
 
-for i in range(60, len(train_data)):
-    x_train.append(train_data[i - 60:i, 0])
-    y_train.append(train_data[i, 0])
-    if i <= 61:
-        print(x_train)
-        print(y_train)
-        print()
-
-# Convert the x_train and y_train to numpy arrays
-x_train, y_train = np.array(x_train), np.array(y_train)
-
-# Reshape the data
-x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+for i in range(window_size, len(train_data) - predict_ahead + 1):
+    x_train.append(train_data[i - window_size:i])
+    y_train.append(train_data[i:i + predict_ahead, 3])  # index 3 = 'Close'
 
 
-# Build the LSTM model
-model = Sequential()
-model.add(Input((x_train.shape[1], 1)))
-model.add(LSTM(128, return_sequences=True))
-model.add(LSTM(64, return_sequences=False))
-model.add(Dense(25))
-model.add(Dense(1))
+x_train = np.array(x_train)
+y_train = np.array(y_train)
 
-# Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error')
+# Build model
+model = Sequential([
+    Input(shape=(window_size, 5)),
+    LSTM(128, return_sequences=True),
+    LSTM(64),
+    Dense(predict_ahead)
+])
 
-# Train the model
-model.fit(x_train, y_train, batch_size=1, epochs=1)
+model.compile(optimizer='adam', loss='mse')
+model.fit(x_train, y_train, epochs=5, batch_size=32)
 
-# Create the testing data set
-# Create a new array containing scaled values from index 1543 to 2002
-test_data = scaled_data[training_data_len - 60:, :]
-# Create the data sets x_test and y_test
+# Prepare test data
 x_test = []
-y_test = dataset[training_data_len:, :]
-for i in range(60, len(test_data)):
-    x_test.append(test_data[i - 60:i, 0])
+y_test = scaled_data[-(predict_ahead + window_size):]
+y_actual = data['Close'].values[-predict_ahead:]
 
-# Convert the data to a numpy array
+x_input = y_test[:window_size]
+x_test.append(x_input)
+
 x_test = np.array(x_test)
 
-# Reshape the data
-x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+# Predict
+predicted_scaled = model.predict(x_test)
+predicted = scaler.inverse_transform(
+    np.hstack([np.zeros((predict_ahead, 3)),
+               predicted_scaled[0].reshape(-1, 1),
+               np.zeros((predict_ahead, 1))]))[:, 3]
 
-# Get the models predicted price values
-predictions = model.predict(x_test)
-predictions = scaler.inverse_transform(predictions)
-
-# Get the root mean squared error (RMSE)
-rmse = np.sqrt(np.mean(((predictions - y_test) ** 2)))
-
-# Plot the data
-train = data[:training_data_len]
-valid = data[training_data_len:]
-valid['Predictions'] = predictions
-train.to_pickle('/app/chart/data/train')
-valid.to_pickle('/app/chart/data/valid')
-# Visualize the data
-plt.figure(figsize=(16,6))
-plt.title('Model')
-plt.xlabel('Date', fontsize=18)
-plt.ylabel('Close Price USD ($)', fontsize=18)
-plt.plot(train['BTC-USD'], lw=1)
-plt.plot(valid[['BTC-USD', 'Predictions']], lw=1)
-plt.legend(['Train', 'Val', 'Predictions'], loc='lower right')
-plt.savefig('/app/chart/image/figure2.png')
+# Plot
+matplotlib.use('TkAgg')
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(data)), data['Close'], label='Historical Close')
+plt.plot(range(len(data) - predict_ahead, len(data)), y_actual, label='Actual Future Close')
+plt.plot(range(len(data) - predict_ahead, len(data)), predicted, label='Predicted Future Close')
+plt.title('Crypto Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend()
+plt.tight_layout()
+plt.show()

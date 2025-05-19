@@ -14,3 +14,5 @@ Flask~=3.0.3
 websocket-client~=0.57.0
 setuptools~=68.2.0
 torch
+tensorflow==2.19.0
+keras==3.9.0
