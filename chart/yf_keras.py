@@ -17,6 +17,7 @@ from keras.api.layers import Dense, LSTM, Input, Bidirectional, Dropout, LayerNo
 from keras.api.callbacks import ModelCheckpoint
 
 # Configuration
+pd.options.mode.chained_assignment = None
 tech_list = ['BTC-USD', 'XRP-USD']
 company_name = ["Bitcoin", "Ripple"]
 PREDICT_AHEAD = 25  # Number of candles to predict into the future
@@ -78,24 +79,25 @@ for symbol, name in zip(tech_list, company_name):
                                  monitor='loss',
                                  verbose=1)
     # Use only BTC-USD for now
-    data = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna(inplace=True)
+    data = df[['Open', 'High', 'Low', 'Close', 'Volume']]
     data['LogReturn'] = np.log(data['Close'] / data['Close'].shift(1))
-    data['RSI'] = RSIIndicator(close=data['Close']).rsi()
-    data['MACD'] = MACD(close=data['Close']).macd()
-    data['MA'] = SMAIndicator(close=data['Close'], window=14).sma_indicator()
+    data['RSI'] = RSIIndicator(close=pd.Series(data['Close'].to_numpy().reshape(-1))).rsi().to_numpy()
+    data['MACD'] = MACD(close=pd.Series(data['Close'].to_numpy().reshape(-1))).macd().to_numpy()
+    data['MA'] = SMAIndicator(close=pd.Series(data['Close'].to_numpy().reshape(-1)), window=14).sma_indicator().to_numpy()
     data.dropna(inplace=True)
     # Normalize
     scaled_data = scaler.fit_transform(data)
-    print(scaled_data)
+    # print(scaled_data)
     # Split into training and testing
     train_data = scaled_data[:-PREDICT_AHEAD]
     train_input = []
     train_output = []
     for i in range(WINDOW_SIZE, len(train_data) - PREDICT_AHEAD + 1):
         train_input.append(train_data[i - WINDOW_SIZE:i])
-        train_output.append(train_data[i + 1:i + PREDICT_AHEAD + 1, 'Close'])
+        train_output.append(train_data[i:i + PREDICT_AHEAD, 3])
     train_input = np.array(train_input)
     train_output = np.array(train_output)
+    continue
     history = model.fit(train_input, train_output, epochs=5, batch_size=32, callbacks=[checkpoint])
     pd.DataFrame(history.history).to_csv('training_history.csv', mode='a')
 # Prepare test data
@@ -107,13 +109,12 @@ x_input = y_test[:WINDOW_SIZE]
 x_test.append(x_input)
 
 x_test = np.array(x_test)
-
 # Predict
 predicted_scaled = model.predict(x_test)
 predicted = scaler.inverse_transform(
     np.hstack([np.zeros((PREDICT_AHEAD, 3)),
                predicted_scaled[0].reshape(-1, 1),
-               np.zeros((PREDICT_AHEAD, 1))]))[:, 3]
+               np.zeros((PREDICT_AHEAD, scaled_data.shape[1]-4))]))[:, 3]
 
 # Plot
 matplotlib.use('TkAgg')
