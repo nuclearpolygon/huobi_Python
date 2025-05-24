@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,6 +27,12 @@ WINDOW_SIZE = 60    # Number of past candles used for prediction
 model_dir = Path("models")
 model_dir.mkdir(exist_ok=True)
 
+# Read env
+SAVE_CHECKPOINTS = bool(os.getenv('SAVE_CHECKPOINTS'))
+TRAIN = bool(os.getenv('TRAIN'))
+READ_CHECKPOINTS = bool(os.getenv('READ_CHECKPOINTS'))
+READ_PATH = os.getenv('READ_PATH')
+
 def get_checkpoint_path(_next=False, stem='checkpoint') -> Path:
     num = 0
     path = model_dir / f'{stem}_{num}.keras'
@@ -47,11 +55,11 @@ model = Sequential([
     Dropout(0.2),
     Dense(PREDICT_AHEAD)
 ])
-if get_checkpoint_path().exists():
-    model.load_weights(get_checkpoint_path())
+if (get_checkpoint_path().exists() and READ_CHECKPOINTS)\
+        or READ_PATH:
+    model.load_weights(READ_PATH or get_checkpoint_path())
 
 model.compile(optimizer='adam', loss='mse')
-scaler = MinMaxScaler()
 
 # Download or load data
 end = datetime.now()
@@ -72,7 +80,6 @@ for symbol, name in zip(tech_list, company_name):
     except Exception as e:
         print(f'reading data for {symbol}')
         df = pd.read_pickle(f_name.__str__())
-    data_frames.append(df)
     checkpoint = ModelCheckpoint(filepath=get_checkpoint_path(_next=True),
                                  save_weights_only=False,
                                  save_best_only=True,
@@ -86,7 +93,9 @@ for symbol, name in zip(tech_list, company_name):
     data['MA'] = SMAIndicator(close=pd.Series(data['Close'].to_numpy().reshape(-1)), window=14).sma_indicator().to_numpy()
     data.dropna(inplace=True)
     # Normalize
+    scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data)
+    data_frames.append((data, scaled_data, scaler))
     # print(scaled_data)
     # Split into training and testing
     train_data = scaled_data[:-PREDICT_AHEAD]
@@ -97,15 +106,21 @@ for symbol, name in zip(tech_list, company_name):
         train_output.append(train_data[i:i + PREDICT_AHEAD, 3])
     train_input = np.array(train_input)
     train_output = np.array(train_output)
-    continue
-    history = model.fit(train_input, train_output, epochs=5, batch_size=32, callbacks=[checkpoint])
+    callbacks = []
+    if SAVE_CHECKPOINTS:
+        callbacks = [checkpoint]
+    if not TRAIN:
+        continue
+    history = model.fit(train_input, train_output, epochs=5, batch_size=32, callbacks=callbacks)
     pd.DataFrame(history.history).to_csv('training_history.csv', mode='a')
 # Prepare test data
 x_test = []
+data, scaled_data, scaler = data_frames[0]
 y_test = scaled_data[-(PREDICT_AHEAD + WINDOW_SIZE):]
 y_actual = data['Close'].values[-PREDICT_AHEAD:]
 
 x_input = y_test[:WINDOW_SIZE]
+print(x_input)
 x_test.append(x_input)
 
 x_test = np.array(x_test)
@@ -118,8 +133,10 @@ predicted = scaler.inverse_transform(
 
 # Plot
 matplotlib.use('TkAgg')
-plt.figure(figsize=(12, 6))
+figure = plt.figure(figsize=(12, 6))
 plt.plot(range(len(data)), data['Close'], label='Historical Close')
+plt.plot(range(len(data)), data['MA'], label='MA')
+# plt.plot(range(len(data)), data['MA'], label='MA')
 plt.plot(range(len(data) - PREDICT_AHEAD, len(data)), y_actual, label='Actual Future Close')
 plt.plot(range(len(data) - PREDICT_AHEAD, len(data)), predicted, label='Predicted Future Close')
 plt.title('Crypto Price Prediction')
@@ -127,5 +144,14 @@ plt.xlabel('Time')
 plt.ylabel('Price')
 plt.legend()
 plt.tight_layout()
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(data)), data['LogReturn'], label='LogReturn')
+plt.title('Log Return')
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(data)), data['MACD'], label='MACD')
+plt.title('MACD')
+plt.figure(figsize=(12, 6))
+plt.plot(range(len(data)), data['RSI'], label='RSI')
+plt.title('RSI')
 plt.show()
 # plt.savefig(get_checkpoint_path(stem='plot').with_suffix('.png'))
